@@ -1,11 +1,11 @@
-package poc.persistence.write
+package poc.persistence.read
 
 import akka.actor._
 import poc.persistence._
 import scala ._
 
 
-object WriteApp extends App {
+object ReadApp extends App {
 	
   val time = System.nanoTime()
 

@@ -6,21 +6,18 @@ import poc.persistence.write._
 import scala._
 
 
-class Handler extends Actor {
+class Handler extends Actor with ActorLogging {
 	
-	def getOrderChild(id: String) = context.child(id).getOrElse(OrderActor.props(id))
-	def getNotificationChild(id:String) = context.child(msg.idOrder).getOrElse(NotificationActor.props(msg.idOrder))
+	def getOrderChild(id: String): ActorRef = context.child(id).getOrElse(context.actorOf(OrderActor.props(id), id))
+	//~ def getNotificationChild(id:String): ActorRef = context.child(id).getOrElse(context.actorOf(NotificationActor.props(id)))
 		
 	def receive : Receive = {
-		
-		case msg : CmdOrder => {
-		 getOrderChild(msg.idOrder) ! msg
+		case msg : WithOrder => {
+			 getOrderChild(msg.idOrder) ! msg
+			 log.info("message with idOrder = {}", msg)
 		}
-		
-		case msg : CmdNotificaction => {
-		 getNotificationChild(msg.idNotification)
-		}
-		
+		case s: String => 
+			log.info(s)
 	}
 
 	
