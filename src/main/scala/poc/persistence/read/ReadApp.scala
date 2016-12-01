@@ -13,4 +13,6 @@ object ReadApp extends App {
 
   val query = PersistenceQuery(system).readJournalFor[LeveldbReadJournal](LeveldbReadJournal.Identifier)
 
+  query.eventsByTag("idUser1").runForeach(e => println(e))
+
 }
