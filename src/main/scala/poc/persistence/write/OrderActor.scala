@@ -89,7 +89,7 @@ class OrderActor(id : String ) extends PersistentActor with ActorLogging with At
       {
         case e: Event => 
             log.info("receiving recovery event -> {}",  e)
-          onEvent(e)
+            onEvent(e)
         case msg => log.info("receiving recovery other messages -> {}", msg )
     }
   
@@ -107,8 +107,14 @@ import akka.persistence.journal.Tagged
 class OrderTaggingEventAdapter extends WriteEventAdapter {
   
   override def toJournal(event: Any): Any = event match {
-    case e: WithUser => Tagged(e, Set(e.idUser))
-    case _ => 
+    case e: Events.OrderInitialized => 
+      Tagged(e, Set(e.idUser))
+    case e: Events.OrderCancelled =>
+      Tagged(e, 
+    case e => 
+      // Trace 
+      println( s" XXXXXXXX to Journal when it is NOT a WithUser -> $e" )
+      // End trace
   }
  
   override def manifest(event: Any): String = ""

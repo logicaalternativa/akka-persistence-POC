@@ -14,5 +14,6 @@ libraryDependencies ++= Seq(
 
 licenses := Seq(("CC0", url("http://creativecommons.org/publicdomain/zero/1.0")))
 
-
 fork in run := true
+
+cancelable in Global := true
