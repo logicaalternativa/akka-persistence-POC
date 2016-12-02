@@ -39,7 +39,9 @@ package Commands {
 
 }
 
-sealed trait Event
+sealed trait Event {
+  val timeStamp: Long
+}
 
 package Events {
 
@@ -135,9 +137,11 @@ class OrderTaggingEventAdapter extends WriteEventAdapter {
 
   override def toJournal(event: Any): Any = event match {
     case e: Events.OrderInitialized =>
-      Tagged(e, Set("HasUserId", e.order.idUser.toString))
+      println("########## Event Adapter Works ############")
+      Tagged(e, Set("42"))
     case e: Events.OrderCancelled =>
-      Tagged(e, Set("HasUserId", e.order.idUser.toString))
+      println("########## Event Adapter Works ############")
+      Tagged(e, Set("42"))
   }
 
   override def manifest(event: Any): String = ""
