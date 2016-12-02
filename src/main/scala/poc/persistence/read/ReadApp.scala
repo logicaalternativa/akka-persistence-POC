@@ -2,7 +2,6 @@ package poc.persistence.read
 
 import akka.actor._
 import akka.persistence.query.PersistenceQuery
-import akka.persistence.query.journal.leveldb.scaladsl.LeveldbReadJournal
 import akka.stream.ActorMaterializer
 
 object ReadApp extends App {
@@ -11,7 +10,7 @@ object ReadApp extends App {
 
   implicit val mat = ActorMaterializer()
 
-  val query = PersistenceQuery(system).readJournalFor[LeveldbReadJournal](LeveldbReadJournal.Identifier)
+  val query = PersistenceQuery(system).readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
 
   query.eventsByTag("idUser1").runForeach(e => println(e))
 

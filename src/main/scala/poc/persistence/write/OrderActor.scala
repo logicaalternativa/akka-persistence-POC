@@ -83,7 +83,7 @@ class OrderActor extends PersistentActor with ActorLogging with AtLeastOnceDeliv
       log.info("Received InitializeOrder command!")
       persist(Events.OrderInitialized(System.nanoTime(), o)) { e =>
         onEvent(e)
-        log.info("Persisted OrderInitialized event!", e)
+        log.info("Persisted OrderInitialized event!")
       }
 
     case o: Commands.CancelOrder =>
@@ -114,7 +114,7 @@ class OrderActor extends PersistentActor with ActorLogging with AtLeastOnceDeliv
   }
 
   def onEvent(e: Event) = {
-    log.info("Changing internal state in response to an event! {}", e)
+    log.info("Changing internal state in response to an event!")
     e match {
       case e: Events.OrderInitialized =>
         state = StateOrder.IN_PROGRESS
