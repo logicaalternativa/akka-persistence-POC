@@ -55,11 +55,15 @@ object OrderActor {
 
     val name = "orders"
 
+    // the input for the extractShardId function
+    // is the message that the "handler" receives
     def extractShardId: ShardRegion.ExtractShardId = {
       case msg: WithUser =>
         (msg.idUser % 2).toString
     }
 
+    // the input for th extractEntityId function
+    // is the message that the "handler" receives
     def extractEntityId: ShardRegion.ExtractEntityId = {
       case msg: WithOrder =>
         (msg.idOrder, msg)
@@ -75,7 +79,7 @@ class OrderActor extends PersistentActor with ActorLogging with AtLeastOnceDeliv
   context.setReceiveTimeout(120 seconds)
 
   // self.path.name is the entity identifier (utf-8 URL-encoded)
-  override def persistenceId: String = "Counter-" + self.path.name
+  override def persistenceId: String = self.path.name
 
 
   val receiveCommand: Receive = {

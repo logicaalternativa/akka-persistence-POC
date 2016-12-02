@@ -10,14 +10,14 @@ object WriteApp extends App {
   val system = ActorSystem("example")
 
   ClusterSharding(system).start(
-    typeName = OrderActor.name,
+    typeName = OrderActor.name, // orders
     entityProps = OrderActor.props,
     settings = ClusterShardingSettings(system),
     extractShardId = OrderActor.extractShardId,
     extractEntityId = OrderActor.extractEntityId
   )
 
-  val handler = ClusterSharding(system).shardRegion(OrderActor.name)
+  val handler: ActorRef = ClusterSharding(system).shardRegion(OrderActor.name)
 
   val order1Init = InitializeOrder(1, "order1", 1)
   val order1Cancel = CancelOrder(2, "order1", 1)
