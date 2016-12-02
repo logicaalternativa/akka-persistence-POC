@@ -67,7 +67,7 @@ object OrderActor {
 
 }
 
-class OrderActor(id: String) extends PersistentActor with ActorLogging with AtLeastOnceDelivery {
+class OrderActor extends PersistentActor with ActorLogging with AtLeastOnceDelivery {
 
   import ShardRegion.Passivate
 
