@@ -7,9 +7,9 @@ import akka.stream.ActorMaterializer
 
 object ReadApp extends App {
 
-  val system = ActorSystem("example")
+  implicit val system = ActorSystem("example")
 
-  implicit val mat = ActorMaterializer()(system)
+  implicit val mat = ActorMaterializer()
 
   val query = PersistenceQuery(system).readJournalFor[LeveldbReadJournal](LeveldbReadJournal.Identifier)
 
