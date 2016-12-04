@@ -18,6 +18,7 @@ object ReadApp extends App {
   implicit val timeout = akka.util.Timeout(10 seconds)
 
   import akka.persistence.query._
+  import java.util.UUID
 
   implicit val system = ActorSystem("example")
   implicit val materializer = ActorMaterializer()
@@ -46,26 +47,29 @@ object ReadApp extends App {
 
   askForLastOffset.mapTo[Long].onSuccess {
     case lastOffset: Long =>
-      println("^^^^^^^^^ We know the last offset ^^^^^^^^^" + lastOffset)
+      println(s"^^^^^^^^^ We know the last offset -> $lastOffset ^^^^^^^^^")
       val query = PersistenceQuery(system)
         .readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
-        .eventsByTag("42", Offset.sequence(lastOffset))
-        .map { envelope => {
-          envelope.event match {
-            case e: poc.persistence.write.Events.OrderInitialized => {
-              handlerForUsers ! e
-              streamManager ! SaveProgress(envelope.sequenceNr)
-              println("^^^^^^^^^ Saved Progress ^^^^^^^^^")
-            }
-            case e: poc.persistence.write.Events.OrderCancelled => {
-              handlerForUsers ! e
-              streamManager ! SaveProgress(envelope.sequenceNr)
-            }
-            case _ =>
-              println("^^^^^^^^^ I don't understand ^^^^^^^^^")
-          }
-        }
-        }.runForeach(f => println("Processed one element!"))
+        //~ .eventsByTag("42", Offset.sequence(lastOffset))
+        .eventsByTag("42", TimeBasedUUID( UUID.fromString("3b522160-b8d2-11e6-857b-630cedbb29a0")))
+        //~ .eventsByPersistenceId("order1", 0, Long.MaxValue)
+        //~ .map { envelope => {
+          //~ envelope.event match {
+            //~ case e: poc.persistence.write.Events.OrderInitialized => {
+              //~ handlerForUsers ! e
+              //~ streamManager ! SaveProgress(envelope.sequenceNr)
+              //~ println("^^^^^^^^^ Saved Progress ^^^^^^^^^")
+            //~ }
+            //~ case e: poc.persistence.write.Events.OrderCancelled => {
+              //~ handlerForUsers ! e
+              //~ streamManager ! SaveProgress(envelope.sequenceNr)
+            //~ }
+            //~ case _ =>
+              //~ println("^^^^^^^^^ I don't understand ^^^^^^^^^")
+          //~ }
+        //~ }
+        //~ }
+        .runForeach(f => println(s"^^^^^^^^^ Processed one element! -> $f ^^^^^^^^^"))
   }
 
 
