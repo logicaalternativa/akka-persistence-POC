@@ -4,50 +4,41 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.cluster.sharding.ShardRegion
 import akka.persistence._
+import poc.persistence.write.Commands.{CancelOrder, InitializeOrder}
 
 import scala.language.postfixOps
 
-sealed trait StateOrder
+sealed trait OrderState
 
-object StateOrder {
+package OrderState {
 
-  case object NONE extends StateOrder
+  case object NONE extends OrderState
 
-  case object INIT extends StateOrder
+  case object CANCELLED extends OrderState
 
-  case object OK extends StateOrder
+  case object IN_PROGRESS extends OrderState
 
-  case object CANCELLED extends StateOrder
-
-  case object IN_PROGRESS extends StateOrder
+  case object COMPLETE extends OrderState
 
 }
 
-trait WithOrder {
-  val idOrder: String
-}
-
-trait WithUser {
-  val idUser: Long
-}
+trait Command
 
 package Commands {
 
-  case class InitializeOrder(idMsg: Long, idOrder: String, idUser: Long) extends WithUser with WithOrder
+  case class InitializeOrder(idOrder: String, idUser: Long, orderData: Map[String, String]) extends Command
 
-  case class CancelOrder(idMsg: Long, idOrder: String, idUser: Long) extends WithUser with WithOrder
+  case class CancelOrder(idOrder: String, idUser: Long, orderData: Map[String, String]) extends Command
 
 }
 
-sealed trait Event {
-  val timeStamp: Long
-}
+sealed trait Event
 
 package Events {
 
-  case class OrderInitialized(timeStamp: Long, order: Commands.InitializeOrder) extends Event
+  case class OrderInitialized(idOrder: String, idUser: Long, orderData: Map[String, String]) extends Event
 
-  case class OrderCancelled(timeStamp: Long, order: Commands.CancelOrder) extends Event
+  case class OrderCancelled(idOrder: String, idUser: Long, orderData: Map[String, String]) extends Event
 
 }
 
@@ -58,22 +49,26 @@ object OrderActor {
     val name = "orders"
 
     // the input for the extractShardId function
-    // is the message that the "handler" receives
+    // is some message that the "handler" receives
     def extractShardId: ShardRegion.ExtractShardId = {
-      case msg: WithUser =>
-        (msg.idUser % 2).toString
+      case msg: InitializeOrder =>
+        msg.idUser.toString
+      case msg: CancelOrder =>
+        msg.idUser.toString
     }
 
-    // the input for th extractEntityId function
-    // is the message that the "handler" receives
+    // the input for the extractEntityId function
+    // is some message that the "handler" receives
     def extractEntityId: ShardRegion.ExtractEntityId = {
-      case msg: WithOrder =>
-        (msg.idOrder, msg)
+      case msg: InitializeOrder =>
+        (msg.idOrder.toString, msg)
+      case msg: CancelOrder =>
+        (msg.idOrder.toString, msg)
     }
 
 }
 
-class OrderActor extends PersistentActor with ActorLogging with AtLeastOnceDelivery {
+class OrderActor extends PersistentActor with ActorLogging {
 
   import ShardRegion.Passivate
 
@@ -85,47 +80,50 @@ class OrderActor extends PersistentActor with ActorLogging with AtLeastOnceDeliv
 
 
   val receiveCommand: Receive = {
-    case o: Commands.InitializeOrder =>
+    case command: Commands.InitializeOrder =>
       log.info("Received InitializeOrder command!")
-      persist(Events.OrderInitialized(System.nanoTime(), o)) { e =>
+      persist(Events.OrderInitialized(command.idOrder, command.idUser, command.orderData)) { e =>
         onEvent(e)
         log.info("Persisted OrderInitialized event!")
       }
 
-    case o: Commands.CancelOrder =>
-      if (state == StateOrder.IN_PROGRESS) {
+    case command: Commands.CancelOrder =>
+      if (state == OrderState.IN_PROGRESS) {
         log.info("Received CancelOrder command!")
-        persist(Events.OrderCancelled(System.nanoTime(), o)) { e =>
+        persist(Events.OrderCancelled(command.idOrder,command.idUser, command.orderData)) { e =>
           onEvent(e)
           log.info("Persisted OrderCancelled event!")
         }
-
       } else {
         // Sometimes you may want to persist an event OrderCancellationRequestRejected
         log.info("Command rejected!")
         sender ! "Cannot cancel order if it is not in progress"
       }
 
-    case ReceiveTimeout => context.parent ! Passivate(stopMessage = Stop)
+    case ReceiveTimeout =>
+      context.parent ! Passivate(stopMessage = Stop)
+      log.info("\n********\nSleeping\n********")
     case Stop => context.stop(self)
 
   }
-  var state: StateOrder = StateOrder.NONE
+  var state: OrderState = OrderState.NONE
 
   def receiveRecover = {
-    case e: Event =>
-      log.info("Received an event I need to process for recovery")
-      onEvent(e)
-    case _ =>
+    case RecoveryCompleted =>
+      log.info("""\n******************
+                   |Recovery Completed
+                   |******************""".stripMargin)
+      case e: Event =>
+        onEvent(e)
+      case _ =>
   }
 
   def onEvent(e: Event) = {
-    log.info("Changing internal state in response to an event!")
     e match {
       case e: Events.OrderInitialized =>
-        state = StateOrder.IN_PROGRESS
+        state = OrderState.IN_PROGRESS
       case e: Events.OrderCancelled =>
-        state = StateOrder.CANCELLED
+        state = OrderState.CANCELLED
     }
   }
 
@@ -137,11 +135,9 @@ class OrderTaggingEventAdapter extends WriteEventAdapter {
 
   override def toJournal(event: Any): Any = event match {
     case e: Events.OrderInitialized =>
-      println("########## Event Adapter Works ############")
-      Tagged(e, Set("42"))
+      Tagged(e, Set("Event"))
     case e: Events.OrderCancelled =>
-      println("########## Event Adapter Works ############")
-      Tagged(e, Set("42"))
+      Tagged(e, Set("Event"))
   }
 
   override def manifest(event: Any): String = ""

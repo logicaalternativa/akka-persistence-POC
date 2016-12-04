@@ -19,11 +19,13 @@ object WriteApp extends App {
 
   val handler: ActorRef = ClusterSharding(system).shardRegion(OrderActor.name)
 
-  val order1Init = InitializeOrder(1, "order1", 1)
-  val order1Cancel = CancelOrder(2, "order1", 1)
+  val order1Init = InitializeOrder(idOrder = "42", 42L, Map())
+  val order1Cancel = CancelOrder(idOrder = "42", 42L, Map())
 
   handler ! order1Init
   handler ! order1Cancel
   handler ! order1Cancel // will be rejected!
+
+  Thread.sleep(30000) // we should see some message wrt passivation
 
 }

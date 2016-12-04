@@ -11,6 +11,7 @@ import poc.persistence.write.Events.OrderCancelled
 import scala.concurrent.Future
 import scala.language.postfixOps
 
+/*
 object ReadApp extends App {
 
 
@@ -166,5 +167,5 @@ class UserActor extends Actor with ActorLogging {
 
 }
 
-
+*/
 
