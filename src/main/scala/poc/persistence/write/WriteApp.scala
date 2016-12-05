@@ -2,10 +2,12 @@ package poc.persistence.write
 
 import akka.actor._
 import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings}
+import poc.persistence.write.Commands.{CancelOrder, InitializeOrder}
+
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 object WriteApp extends App {
-	
-  import Commands._
 
   val system = ActorSystem("example")
 
@@ -19,13 +21,41 @@ object WriteApp extends App {
 
   val handler: ActorRef = ClusterSharding(system).shardRegion(OrderActor.name)
 
-  val order1Init = InitializeOrder(idOrder = "42", 42L, Map())
-  val order1Cancel = CancelOrder(idOrder = "42", 42L, Map())
+  val randomCommandGenerator = system.actorOf(RandomCommandGenerator.props(handler), "random")
+  import system.dispatcher
 
-  handler ! order1Init
-  handler ! order1Cancel
-  handler ! order1Cancel // will be rejected!
+  if (args.containsSlice(List("random", "--slow"))) {
+    system.scheduler.schedule(5 seconds, 10 seconds, randomCommandGenerator, 'SendRandomCommands)
+  } else {
+    if (args.containsSlice(List("random", "--fast"))) {
+      system.scheduler.schedule(5 seconds, 5 seconds, randomCommandGenerator, 'SendRandomCommands)
+    }
+  }
 
-  Thread.sleep(30000) // we should see some message wrt passivation
 
 }
+
+object RandomCommandGenerator {
+
+  def props(handler: ActorRef) = Props(classOf[RandomCommandGenerator], handler)
+
+}
+
+class RandomCommandGenerator(handler: ActorRef) extends Actor {
+
+  def receive = {
+    case 'SendRandomCommands => {
+      val userId = util.Random.nextInt(10)
+      val orderId = util.Random.nextInt(20).toString
+      util.Random.nextBoolean() match {
+        case true => handler ! InitializeOrder(orderId, userId, Map())
+        case false => handler ! CancelOrder(orderId, userId)
+      }
+    }
+  }
+
+
+}
+
+
+

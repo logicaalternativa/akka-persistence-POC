@@ -8,17 +8,17 @@ import poc.persistence.write.Commands.{CancelOrder, InitializeOrder}
 
 import scala.language.postfixOps
 
-sealed trait OrderState
-
+sealed trait OrdState
 package OrderState {
 
-  case object NONE extends OrderState
 
-  case object CANCELLED extends OrderState
+  case object NONE extends OrdState
 
-  case object IN_PROGRESS extends OrderState
+  case object CANCELLED extends OrdState
 
-  case object COMPLETE extends OrderState
+  case object IN_PROGRESS extends OrdState
+
+  case object COMPLETE extends OrdState
 
 }
 
@@ -28,7 +28,7 @@ package Commands {
 
   case class InitializeOrder(idOrder: String, idUser: Long, orderData: Map[String, String]) extends Command
 
-  case class CancelOrder(idOrder: String, idUser: Long, orderData: Map[String, String]) extends Command
+  case class CancelOrder(idOrder: String, idUser: Long) extends Command
 
 }
 
@@ -38,7 +38,7 @@ package Events {
 
   case class OrderInitialized(idOrder: String, idUser: Long, orderData: Map[String, String]) extends Event
 
-  case class OrderCancelled(idOrder: String, idUser: Long, orderData: Map[String, String]) extends Event
+  case class OrderCancelled(idOrder: String, idUser: Long) extends Event
 
 }
 
@@ -75,45 +75,49 @@ class OrderActor extends PersistentActor with ActorLogging {
   import scala.concurrent.duration._
   context.setReceiveTimeout(120 seconds)
 
-  // self.path.name is the entity identifier (utf-8 URL-encoded)
   override def persistenceId: String = self.path.name
 
+ var state: OrdState = OrderState.NONE
 
   val receiveCommand: Receive = {
     case command: Commands.InitializeOrder =>
       log.info("Received InitializeOrder command!")
-      persist(Events.OrderInitialized(command.idOrder, command.idUser, command.orderData)) { e =>
-        onEvent(e)
-        log.info("Persisted OrderInitialized event!")
+      if (state == OrderState.NONE) {
+        persist(Events.OrderInitialized(command.idOrder, command.idUser, command.orderData)) { e =>
+          onEvent(e)
+          log.info("Persisted OrderInitialized event!")
+        }
+      } else {
+        log.info("Command rejected!")
+        sender ! "Cannot initialize order since it has already been initialized, cancelled or completed"
       }
 
     case command: Commands.CancelOrder =>
       if (state == OrderState.IN_PROGRESS) {
         log.info("Received CancelOrder command!")
-        persist(Events.OrderCancelled(command.idOrder,command.idUser, command.orderData)) { e =>
+        persist(Events.OrderCancelled(command.idOrder,command.idUser)) { e =>
           onEvent(e)
           log.info("Persisted OrderCancelled event!")
         }
       } else {
-        // Sometimes you may want to persist an event OrderCancellationRequestRejected
+        // Sometimes you may want to persist an event: OrderCancellationRequestRejected
         log.info("Command rejected!")
         sender ! "Cannot cancel order if it is not in progress"
       }
 
     case ReceiveTimeout =>
       context.parent ! Passivate(stopMessage = Stop)
-      log.info("\n********\nSleeping\n********")
+      log.info("Sleeping")
     case Stop => context.stop(self)
 
   }
-  var state: OrderState = OrderState.NONE
 
+  var numEvents = 0
   def receiveRecover = {
     case RecoveryCompleted =>
-      log.info("""\n******************
-                   |Recovery Completed
-                   |******************""".stripMargin)
+      log.info("Recovery completed. Replayed {} events!", numEvents)
       case e: Event =>
+        numEvents = numEvents + 1
         onEvent(e)
       case _ =>
   }
