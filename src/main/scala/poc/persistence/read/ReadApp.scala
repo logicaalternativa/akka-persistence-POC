@@ -8,6 +8,8 @@ import akka.persistence.cassandra.query.scaladsl.CassandraReadJournal
 import akka.stream.ActorMaterializer
 import poc.persistence.write.Events.OrderCancelled
 
+import akka.persistence.query._
+
 import scala.concurrent.Future
 import scala.language.postfixOps
 
@@ -16,8 +18,6 @@ object ReadApp extends App {
 
   import scala.concurrent.duration._
   implicit val timeout = akka.util.Timeout(10 seconds)
-
-  import akka.persistence.query._
   import java.util.UUID
 
   implicit val system = ActorSystem("example")
@@ -45,34 +45,32 @@ object ReadApp extends App {
     }
   }
 
-  askForLastOffset.mapTo[Long].onSuccess {
-    case lastOffset: Long =>
+  askForLastOffset.mapTo[Offset].onSuccess {
+    case lastOffset: Offset =>
       println(s"^^^^^^^^^ We know the last offset -> $lastOffset ^^^^^^^^^")
       val query = PersistenceQuery(system)
         .readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
-        //~ .eventsByTag("42", Offset.sequence(lastOffset))
-        .eventsByTag("42", TimeBasedUUID( UUID.fromString("3b522160-b8d2-11e6-857b-630cedbb29a0")))
-        //~ .eventsByPersistenceId("order1", 0, Long.MaxValue)
-        //~ .map { envelope => {
-          //~ envelope.event match {
-            //~ case e: poc.persistence.write.Events.OrderInitialized => {
-              //~ handlerForUsers ! e
-              //~ streamManager ! SaveProgress(envelope.sequenceNr)
-              //~ println("^^^^^^^^^ Saved Progress ^^^^^^^^^")
-            //~ }
-            //~ case e: poc.persistence.write.Events.OrderCancelled => {
-              //~ handlerForUsers ! e
-              //~ streamManager ! SaveProgress(envelope.sequenceNr)
-            //~ }
-            //~ case _ =>
-              //~ println("^^^^^^^^^ I don't understand ^^^^^^^^^")
-          //~ }
-        //~ }
-        //~ }
+        .eventsByTag("42", lastOffset )
+        //~ .eventsByTag("42", NoOffset )
+        .map { envelope => {
+            envelope.event match {
+              case e: poc.persistence.write.Events.OrderInitialized => {
+                handlerForUsers ! e
+                streamManager ! SaveProgress(envelope.offset)
+                println(s"^^^^^^^^^ OrderInitialized Saved Progress ->  ${envelope.offset} ^^^^^^^^^")
+              }
+              case e: poc.persistence.write.Events.OrderCancelled => {
+                handlerForUsers ! e
+                streamManager ! SaveProgress(envelope.offset)
+                println(s"^^^^^^^^^ OrderCancelled Saved Progress ->  ${envelope.offset} ^^^^^^^^^")
+              }
+              case _ =>
+                println("^^^^^^^^^ I don't understand ^^^^^^^^^")
+            }
+          }
+        }
         .runForeach(f => println(s"^^^^^^^^^ Processed one element! -> $f ^^^^^^^^^"))
   }
-
-
 
   (handlerForUsers ? GetHistoryFor(1)).onSuccess {
     case s => println(s)
@@ -87,14 +85,14 @@ object StreamManager {
 
 case object GetLastOffsetProc
 
-case class SaveProgress(i: Long)
+case class SaveProgress(offset: Offset)
 
-case class ProgressAcknowledged(i: Long)
+case class ProgressAcknowledged(offset: Offset)
 
 class StreamManager extends PersistentActor with ActorLogging {
-
+  
   implicit val mat = ActorMaterializer()
-  var lastOffsetProc: Long = 0L // initial value is 0
+  var lastOffsetProc: Offset = NoOffset 
 
   override def receiveRecover: Receive = {
     case ProgressAcknowledged(i) =>
@@ -104,11 +102,11 @@ class StreamManager extends PersistentActor with ActorLogging {
   override def receiveCommand: Receive = {
     case GetLastOffsetProc =>
       sender ! lastOffsetProc
-    case SaveProgress(i: Long) =>
+    case SaveProgress(i: Offset) =>
       persist(ProgressAcknowledged(i)) {
         e => {
-          lastOffsetProc = e.i
-          sender ! 'Success
+          lastOffsetProc = e.offset
+          //~ sender ! 'Success
         }
       }
   }
@@ -134,7 +132,6 @@ object UserActor {
 
   def props = Props[UserActor]
 
-
   // the input for the extractShardId function
   // is the message that the "handler" receives
   def extractShardId: ShardRegion.ExtractShardId = {
@@ -157,15 +154,44 @@ object UserActor {
 
 }
 
-class UserActor extends Actor with ActorLogging {
+class UserActor extends PersistentActor with ActorLogging {
+  
+  import poc.persistence.write._
+  
+  override def persistenceId: String = s"user-${self.path.name}"
+  
+  var history: String = ""
+  
+  override def receiveRecover = {
+    case e: String => onEvent( e )    
+  }
 
-  var history: List[poc.persistence.write.Event] = List()
-
-  override def receive = {
-    case e: Event =>
-      history = e :: history
-    case GetHistory =>
-      sender ! history.mkString(",")
+  override def receiveCommand = {
+    case e: Event => 
+        persist( e.toString() ) { eventSaved => 
+            onEvent( eventSaved )
+            log.info( "I am {} and it is persistend the following event {}", self.path, eventSaved )                               
+        }
+    case GetHistory =>      
+      log.info( "Get history form user {} ", history )
+      sender ! createMsgHistory
+  }
+  
+  def createMsgHistory : String =   {
+s"""
+·············
+HISTORY $persistenceId:
+$history
+·············
+"""    
+  }
+  
+  
+  
+  def onEvent( element : String ){
+      history = s"$history\n$element"
+      log.info( "New history -> {}", history )
+    
   }
 
 }
