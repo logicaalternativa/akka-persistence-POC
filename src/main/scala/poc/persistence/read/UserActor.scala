@@ -27,19 +27,19 @@ object UserActor {
 
   def name = "Users"
 
-  def props = Props[UserActor]
+  private def props = Props[UserActor]
 
   // the input for the extractShardId function
   // is the message that the "handler" receives
-  def extractShardId: ShardRegion.ExtractShardId = {
-    case msg: Event =>
-      (msg.timeStamp % 2).toString
+  private def extractShardId: ShardRegion.ExtractShardId = {
+    //~ case msg: Event =>
+      //~ (msg.timeStamp % 2).toString // <- Be carefull with this. By Timestamp is not good idea
     case _ => "1"
   }
 
   // the input for th extractEntityId function
   // is the message that the "handler" receives
-  def extractEntityId: ShardRegion.ExtractEntityId = {
+  private def  extractEntityId: ShardRegion.ExtractEntityId = {
     case msg: OrderInitialized =>
       (msg.order.idUser.toString, msg)
     case msg: OrderCancelled =>
@@ -47,6 +47,22 @@ object UserActor {
     case msg: GetHistoryFor =>
       (msg.idUser.toString, GetHistory)
 
+  }
+  
+  def startRegion( system: ActorSystem ) {
+    
+    ClusterSharding(system).start(
+      typeName = name,
+      entityProps = props,
+      settings = ClusterShardingSettings(system),
+      extractShardId = extractShardId,
+      extractEntityId = extractEntityId
+    )
+    
+  }
+  def handlerForUsers( system : ActorSystem ) : ActorRef = {
+    ClusterSharding( system )
+    .shardRegion( name )
   }
 
 }
@@ -65,19 +81,22 @@ class UserActor extends PersistentActor with ActorLogging {
 
   override def receiveCommand = {
     case e: Event => 
-        persist( e.toString() ) { eventSaved => 
-            onEvent( eventSaved )
-            log.info( "I am {} and it is persistend the following event {}", self.path, eventSaved )                               
+        log.info( "It is recived the following command {}. I am {} ", e, self.path )       
+        persist( e.toString() ) { eventSaved =>
+            log.info( "It is persisted the following event {}", eventSaved )       
+            onEvent( eventSaved )                         
         }
     case GetHistory =>      
-      log.info( "Get history form user {} ", history )
+      log.info( "Get history from user {} ", history )
       sender ! createMsgHistory
+    
   }
  
   
   def onEvent( element : String ){
       history = s"$history\n$element"
-      log.info( "New history -> {}", history )
+      log.info( "It is added this element to history -> {}", element )
+      log.info( "Now, history is -> {}", history )
     
   }
 

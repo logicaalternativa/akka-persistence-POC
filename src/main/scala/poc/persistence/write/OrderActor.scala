@@ -86,7 +86,7 @@ class OrderActor extends PersistentActor with ActorLogging with AtLeastOnceDeliv
 
   val receiveCommand: Receive = {
     case o: Commands.InitializeOrder =>
-      log.info("Received InitializeOrder command!")
+      log.info("Received InitializeOrder command! . I am {}", self.path)
       persist(Events.OrderInitialized(System.nanoTime(), o)) { e =>
         onEvent(e)
         log.info("Persisted OrderInitialized event!")
@@ -94,7 +94,7 @@ class OrderActor extends PersistentActor with ActorLogging with AtLeastOnceDeliv
 
     case o: Commands.CancelOrder =>
       if (state == StateOrder.IN_PROGRESS) {
-        log.info("Received CancelOrder command!")
+        log.info("Received CancelOrder command!. I am {}", self.path)
         persist(Events.OrderCancelled(System.nanoTime(), o)) { e =>
           onEvent(e)
           log.info("Persisted OrderCancelled event!")

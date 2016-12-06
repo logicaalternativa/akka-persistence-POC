@@ -21,16 +21,9 @@ object ReadApp extends App {
   implicit val materializer = ActorMaterializer()
   import system.dispatcher
 
-  ClusterSharding(system).start(
-    typeName = UserActor.name,
-    entityProps = UserActor.props,
-    settings = ClusterShardingSettings(system),
-    extractShardId = UserActor.extractShardId,
-    extractEntityId = UserActor.extractEntityId
-  )
-
-  val handlerForUsers: ActorRef = ClusterSharding(system)
-    .shardRegion(UserActor.name)
+  UserActor.startRegion( system )
+  
+  val handlerForUsers: ActorRef = UserActor.handlerForUsers( system )
 
   val streamManager = system.actorOf(StreamManager.props)
 
@@ -55,22 +48,21 @@ object ReadApp extends App {
                 handlerForUsers ! e
                 streamManager ! SaveProgress(envelope.offset)
                 println(s"^^^^^^^^^ OrderInitialized Saved Progress ->  ${envelope.offset} ^^^^^^^^^")
+                envelope
               }
               case e: poc.persistence.write.Events.OrderCancelled => {
                 handlerForUsers ! e
                 streamManager ! SaveProgress(envelope.offset)
                 println(s"^^^^^^^^^ OrderCancelled Saved Progress ->  ${envelope.offset} ^^^^^^^^^")
+                envelope
               }
               case _ =>
                 println("^^^^^^^^^ I don't understand ^^^^^^^^^")
+                envelope
             }
           }
         }
         .runForeach(f => println(s"^^^^^^^^^ Processed one element! -> $f ^^^^^^^^^"))
-  }
-
-  (handlerForUsers ? GetHistoryFor(1)).onSuccess {
-    case s => println(s)
   }
 }
 
