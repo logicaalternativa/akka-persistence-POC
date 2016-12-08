@@ -12,7 +12,7 @@ object WriteApp extends App {
   val system = ActorSystem("example")
 
   ClusterSharding(system).start(
-    typeName = OrderActor.name, // orders
+    typeName = OrderActor.name,
     entityProps = OrderActor.props,
     settings = ClusterShardingSettings(system),
     extractShardId = OrderActor.extractShardId,
@@ -24,13 +24,7 @@ object WriteApp extends App {
   val randomCommandGenerator = system.actorOf(RandomCommandGenerator.props(handler), "random")
   import system.dispatcher
 
-  if (args.containsSlice(List("random", "--slow"))) {
-    system.scheduler.schedule(5 seconds, 10 seconds, randomCommandGenerator, 'SendRandomCommands)
-  } else {
-    if (args.containsSlice(List("random", "--fast"))) {
-      system.scheduler.schedule(5 seconds, 5 seconds, randomCommandGenerator, 'SendRandomCommands)
-    }
-  }
+  system.scheduler.schedule(5 seconds, 10 seconds, randomCommandGenerator, 'SendRandomCommands)
 
 
 }

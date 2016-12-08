@@ -3,6 +3,7 @@ package poc.persistence.write
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.cluster.sharding.ShardRegion
+import akka.event.Logging
 import akka.persistence._
 import poc.persistence.write.Commands.{CancelOrder, InitializeOrder}
 
@@ -135,20 +136,19 @@ class OrderActor extends PersistentActor with ActorLogging {
 
 import akka.persistence.journal.{Tagged, WriteEventAdapter}
 
-class OrderTaggingEventAdapter extends WriteEventAdapter {
+class OrderTaggingEventAdapter(actorSystem: ExtendedActorSystem) extends WriteEventAdapter {
+
+  private val logging = Logging.getLogger(actorSystem, this)
 
   override def toJournal(event: Any): Any = event match {
     case e: Events.OrderInitialized =>
+      logging.info("tagged event")
       Tagged(e, Set("Event"))
     case e: Events.OrderCancelled =>
+      logging.info("tagged event")
       Tagged(e, Set("Event"))
   }
 
   override def manifest(event: Any): String = ""
 }
-
-
-
-
-
 
