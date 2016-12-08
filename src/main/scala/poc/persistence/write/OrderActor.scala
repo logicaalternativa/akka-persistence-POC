@@ -138,15 +138,15 @@ import akka.persistence.journal.{Tagged, WriteEventAdapter}
 
 class OrderTaggingEventAdapter(actorSystem: ExtendedActorSystem) extends WriteEventAdapter {
 
-  private val logging = Logging.getLogger(actorSystem, this)
+  private val log = Logging.getLogger(actorSystem, this)
 
   override def toJournal(event: Any): Any = event match {
     case e: Events.OrderInitialized =>
-      logging.info("tagged event")
-      Tagged(e, Set("Event"))
+      log.debug("tagging OrderInitialized event")
+      Tagged(e, Set("UserEvent"))
     case e: Events.OrderCancelled =>
-      logging.info("tagged event")
-      Tagged(e, Set("Event"))
+      log.debug("tagged OrderCancelled event")
+      Tagged(e, Set("UserEvent"))
   }
 
   override def manifest(event: Any): String = ""
