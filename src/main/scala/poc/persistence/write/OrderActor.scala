@@ -159,14 +159,13 @@ class OrderTaggingEventAdapter(actorSystem: ExtendedActorSystem) extends WriteEv
 
 import akka.serialization.Serializer
 
-class BasketEventSerializer extends Serializer {
+class EventSerialization extends Serializer {
 
   import org.json4s.native.Serialization.{read, write}
 
   val UTF8: Charset = Charset.forName("UTF-8")
 
   implicit val formats = DefaultFormats
-
 
   // Completely unique value to identify this implementation of Serializer, used to optimize network traffic.
   // Values from 0 to 16 are reserved for Akka internal usage.
