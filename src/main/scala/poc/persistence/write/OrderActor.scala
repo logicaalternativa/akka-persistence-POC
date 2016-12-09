@@ -13,8 +13,8 @@ import poc.persistence.write.Commands.{CancelOrder, InitializeOrder}
 import scala.language.postfixOps
 
 sealed trait OrdState
-package OrderState {
 
+package OrderState {
 
   case object NONE extends OrdState
 
@@ -155,13 +155,13 @@ class OrderTaggingEventAdapter(actorSystem: ExtendedActorSystem) extends WriteEv
   override def manifest(event: Any): String = ""
 }
 
-
-
 import akka.serialization.Serializer
 
-class EventSerialization extends Serializer {
+class EventSerialization(actorSystem: ExtendedActorSystem) extends Serializer {
 
   import org.json4s.native.Serialization.{read, write}
+
+  private val log = Logging.getLogger(actorSystem, this)
 
   val UTF8: Charset = Charset.forName("UTF-8")
 
@@ -179,10 +179,17 @@ class EventSerialization extends Serializer {
       case Some(x) => Manifest.classType(x)
       case None => Manifest.AnyRef
     }
-    val result = read(new String(bytes, UTF8))
+    val str = new String(bytes, UTF8)
+    val result = read(str)
+    log.info("de-serializing {}", str)
     result
   }
 
-  override def toBinary(o: AnyRef): Array[Byte] = write(o).getBytes(UTF8)
+  override def toBinary(o: AnyRef): Array[Byte] = {
+    val jsonString = write(o)
+    val dat = write(o).getBytes(UTF8)
+    log.info("serialized {}", jsonString)
+    dat
+  }
 }
 
