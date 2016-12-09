@@ -9,6 +9,7 @@ import akka.stream.ActorMaterializer
 import poc.persistence.write.Events.OrderCancelled
 
 import akka.persistence.query._
+import poc.persistence.BaseObjectActor
 
 import scala.concurrent.Future
 import scala.language.postfixOps
@@ -23,15 +24,15 @@ case object GetHistory extends Query
 
 case class GetHistoryFor(idUser:Long) extends Query
 
-object UserActor {
+object UserActor extends BaseObjectActor{
 
   def name = "Users"
 
-  private def props = Props[UserActor]
+  protected def props = Props[UserActor]
 
   // the input for the extractShardId function
   // is the message that the "handler" receives
-  private def extractShardId: ShardRegion.ExtractShardId = {
+  protected def extractShardId: ShardRegion.ExtractShardId = {
     //~ case msg: Event =>
       //~ (msg.timeStamp % 2).toString // <- Be carefull with this. By Timestamp is not good idea
     case _ => "1"
@@ -39,7 +40,7 @@ object UserActor {
 
   // the input for th extractEntityId function
   // is the message that the "handler" receives
-  private def  extractEntityId: ShardRegion.ExtractEntityId = {
+  protected def  extractEntityId: ShardRegion.ExtractEntityId = {
     case msg: OrderInitialized =>
       (msg.order.idUser.toString, msg)
     case msg: OrderCancelled =>
@@ -49,22 +50,8 @@ object UserActor {
 
   }
   
-  def startRegion( system: ActorSystem ) {
-    
-    ClusterSharding(system).start(
-      typeName = name,
-      entityProps = props,
-      settings = ClusterShardingSettings(system),
-      extractShardId = extractShardId,
-      extractEntityId = extractEntityId
-    )
-    
-  }
-  def handlerForUsers( system : ActorSystem ) : ActorRef = {
-    ClusterSharding( system )
-    .shardRegion( name )
-  }
-
+  
+  
 }
 
 class UserActor extends PersistentActor with ActorLogging {

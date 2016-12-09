@@ -12,18 +12,34 @@ import scala.concurrent.Future
 import scala.language.postfixOps
 
 object ReadApp extends App {
+  
+  import akka.event.Logging
 
   import scala.concurrent.duration._
   implicit val timeout = akka.util.Timeout(10 seconds)
   import java.util.UUID
+  import poc.persistence.UtilActorSystem._
 
   implicit val system = ActorSystem("example")
   implicit val materializer = ActorMaterializer()
   import system.dispatcher
-
-  UserActor.startRegion( system )
   
-  val handlerForUsers: ActorRef = UserActor.handlerForUsers( system )
+  val log = Logging( system.eventStream, "poc.persistence.read.ReadApp")
+  
+  def console( system:ActorSystem ) : Unit = {
+  
+     import scala.io.StdIn._
+     
+     println( "" )
+     print( "Press return to exit" )
+     val id = readLong()
+     println( "\nterminating... " )
+     terminate( system )
+  }
+  
+  starShardingRegions( system )
+  
+  val handlerForUsers: ActorRef = UserActor.receiver( system )
 
   val streamManager = system.actorOf(StreamManager.props)
 
@@ -37,33 +53,36 @@ object ReadApp extends App {
 
   askForLastOffset.mapTo[Offset].onSuccess {
     case lastOffset: Offset =>
-      println(s"^^^^^^^^^ We know the last offset -> $lastOffset ^^^^^^^^^")
+      log.info( "We know the last offset -> {}", lastOffset)
       val query = PersistenceQuery(system)
         .readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
         .eventsByTag("42", lastOffset )
-        //~ .eventsByTag("42", NoOffset )
         .map { envelope => {
             envelope.event match {
               case e: poc.persistence.write.Events.OrderInitialized => {
                 handlerForUsers ! e
                 streamManager ! SaveProgress(envelope.offset)
-                println(s"^^^^^^^^^ OrderInitialized Saved Progress ->  ${envelope.offset} ^^^^^^^^^")
+                log.info("OrderInitialized Saved Progress -> {}", envelope.offset )
                 envelope
               }
               case e: poc.persistence.write.Events.OrderCancelled => {
                 handlerForUsers ! e
                 streamManager ! SaveProgress(envelope.offset)
-                println(s"^^^^^^^^^ OrderCancelled Saved Progress ->  ${envelope.offset} ^^^^^^^^^")
+                log.info("OrderCancelled Saved Progress -> {}", envelope.offset )
                 envelope
               }
-              case _ =>
-                println("^^^^^^^^^ I don't understand ^^^^^^^^^")
+              case msg =>
+                log.info("I don't understand -> {}", msg)
                 envelope
             }
           }
         }
-        .runForeach(f => println(s"^^^^^^^^^ Processed one element! -> $f ^^^^^^^^^"))
+        .runForeach( log.info("Processed one element! -> {}", _ ) )
+        
   }
+  
+  //~ console( system )
+  
 }
 
 

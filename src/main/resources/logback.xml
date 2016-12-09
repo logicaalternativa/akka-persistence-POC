@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+	
+	<property name="LOG_HOME" value="/home/miguel/Codigo/akka-persistence-POC/logs" />
+<!--
+	<appender name="consoleAppender" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <charset>UTF-8</charset>
+		<pattern>%date{ISO8601} %-5level %logger{36} %X{akkaSource} - %msg%n</pattern>
+        </encoder>
+	</appender>
+-->
+
+	<appender name="LOG_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+<!--
+		<file>${LOG_HOME}/debug.log</file>
+-->
+		<file>log/debug-${clustering.port}.log</file>
+		<encoder>
+		<pattern>%date{ISO8601} %-5level %logger{36} %X{akkaSource} - %msg%n</pattern>
+	  </encoder>
+	  <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+		<!-- rollover daily -->
+		<fileNamePattern>log/debug-${clustering.port}.%d{yyyy-MM-dd}.%i.log
+					</fileNamePattern>
+		<timeBasedFileNamingAndTriggeringPolicy
+			class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+			<maxFileSize>10MB</maxFileSize>
+		</timeBasedFileNamingAndTriggeringPolicy>
+		</rollingPolicy>
+	</appender>
+	
+	<root level="info">
+		<appender-ref ref="LOG_FILE" />
+	</root>
+	
+	
+
+</configuration>

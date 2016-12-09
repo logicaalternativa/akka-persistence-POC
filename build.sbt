@@ -11,12 +11,14 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-cluster" % "2.4.4",
   "com.typesafe.akka" %% "akka-cluster-sharding" % "2.4.4",
   "com.typesafe.akka" %% "akka-distributed-data-experimental" % "2.4.4",
-  "com.typesafe.akka" %% "akka-persistence-cassandra" % "0.21"
+  "com.typesafe.akka" %% "akka-persistence-cassandra" % "0.21",
+  "ch.qos.logback"    %  "logback-classic" % "1.1.3",
+  "com.typesafe.akka" %% "akka-slf4j" % "2.4.4"
 )
 
 licenses := Seq(("CC0", url("http://creativecommons.org/publicdomain/zero/1.0")))
 
-// It needs for pack task (see plugins proyect)
+// It needs for pack task (see plugins project)
 packAutoSettings
 
 fork in run := true

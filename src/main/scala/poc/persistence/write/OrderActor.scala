@@ -4,6 +4,8 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.cluster.sharding.ShardRegion
 import akka.persistence._
+import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings, ShardRegion}
+import poc.persistence.BaseObjectActor
 
 import scala.language.postfixOps
 
@@ -51,25 +53,25 @@ package Events {
 
 }
 
-object OrderActor {
+object OrderActor extends BaseObjectActor {
 
-    def props = Props(classOf[OrderActor])
+  protected def props = Props(classOf[OrderActor])
 
-    val name = "orders"
+  val name = "orders"
 
-    // the input for the extractShardId function
-    // is the message that the "handler" receives
-    def extractShardId: ShardRegion.ExtractShardId = {
-      case msg: WithUser =>
-        (msg.idUser % 2).toString
-    }
+  // the input for the extractShardId function
+  // is the message that the "handler" receives
+  protected def extractShardId: ShardRegion.ExtractShardId = {
+    case msg: WithUser =>
+      (msg.idUser % 2).toString
+  }
 
-    // the input for th extractEntityId function
-    // is the message that the "handler" receives
-    def extractEntityId: ShardRegion.ExtractEntityId = {
-      case msg: WithOrder =>
-        (msg.idOrder, msg)
-    }
+  // the input for th extractEntityId function
+  // is the message that the "handler" receives
+  protected def extractEntityId: ShardRegion.ExtractEntityId = {
+    case msg: WithOrder =>
+      (msg.idOrder, msg)
+  }
 
 }
 
@@ -90,6 +92,7 @@ class OrderActor extends PersistentActor with ActorLogging with AtLeastOnceDeliv
       persist(Events.OrderInitialized(System.nanoTime(), o)) { e =>
         onEvent(e)
         log.info("Persisted OrderInitialized event!")
+           sender ! "Sucessfully persisted OrderInitialized "
       }
 
     case o: Commands.CancelOrder =>
@@ -98,6 +101,7 @@ class OrderActor extends PersistentActor with ActorLogging with AtLeastOnceDeliv
         persist(Events.OrderCancelled(System.nanoTime(), o)) { e =>
           onEvent(e)
           log.info("Persisted OrderCancelled event!")
+           sender ! "Sucessfully persisted OrderCancelled "
         }
 
       } else {
@@ -134,13 +138,13 @@ class OrderActor extends PersistentActor with ActorLogging with AtLeastOnceDeliv
 import akka.persistence.journal.{Tagged, WriteEventAdapter}
 
 class OrderTaggingEventAdapter extends WriteEventAdapter {
-
+  
   override def toJournal(event: Any): Any = event match {
     case e: Events.OrderInitialized =>
-      println("########## Event Adapter Works ############")
+      //~ println("########## Event Adapter Works ############")
       Tagged(e, Set("42"))
     case e: Events.OrderCancelled =>
-      println("########## Event Adapter Works ############")
+      //~ println("########## Event Adapter Works ############")
       Tagged(e, Set("42"))
   }
 

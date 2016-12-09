@@ -28,6 +28,7 @@ class StreamManager extends PersistentActor with ActorLogging {
 
   override def receiveCommand: Receive = {
     case GetLastOffsetProc =>
+      log.info( "It going to return the last offset -> {}. I am {} ", lastOffsetProc, self.path )
       sender ! lastOffsetProc
     case SaveProgress(i: Offset) =>
       persist(ProgressAcknowledged(i)) {
