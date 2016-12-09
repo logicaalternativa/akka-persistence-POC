@@ -181,14 +181,12 @@ class EventSerialization(actorSystem: ExtendedActorSystem) extends Serializer {
     }
     val str = new String(bytes, UTF8)
     val result = read(str)
-    log.info("de-serializing {}", str)
     result
   }
 
   override def toBinary(o: AnyRef): Array[Byte] = {
     val jsonString = write(o)
     val dat = write(o).getBytes(UTF8)
-    log.info("serialized {}", jsonString)
     dat
   }
 }

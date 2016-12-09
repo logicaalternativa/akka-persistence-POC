@@ -4,7 +4,7 @@ import akka.actor._
 import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings, ShardRegion}
 import akka.event.Logging
 import akka.pattern.ask
-import akka.persistence.PersistentActor
+import akka.persistence.{PersistentActor, RecoveryCompleted}
 import akka.persistence.cassandra.query.scaladsl.CassandraReadJournal
 import akka.persistence.query._
 import akka.stream.ActorMaterializer
@@ -15,6 +15,7 @@ import poc.persistence.write.Events.OrderCancelled
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.control.NonFatal
 
 object ReadApp extends App {
 
@@ -37,27 +38,36 @@ object ReadApp extends App {
 
   val handlerForUsers: ActorRef = ClusterSharding(system).shardRegion(UserActor.name)
 
-  val streamManager = system.actorOf(StreamManager.props)
+  logger.debug("about to start the stream manager")
+  val streamManager = system.actorOf(StreamManager.props, "stream-manager")
 
-  val askForLastOffset: Future[Any] = (streamManager ? GetLastOffsetProcessed).mapTo[Long]
+  val askForLastOffset: Future[Long] = (streamManager ? GetLastOffsetProcessed).mapTo[Long]
 
   askForLastOffset.onSuccess {
     case lastOffset: Long =>
       logger.debug("last offset is equal to {}", lastOffset)
+
       PersistenceQuery(system)
         .readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
-        .eventsByTag("UserEvent", Offset.sequence(lastOffset))
+        .eventsByTag("UserEvent", lastOffset)
         .map { envelope => {
           envelope.event match {
             case e: poc.persistence.write.Events.OrderInitialized =>
               handlerForUsers ! e
-              streamManager ! SaveProgress(envelope.sequenceNr)
+              streamManager ! SaveProgress(envelope.offset)
             case e: poc.persistence.write.Events.OrderCancelled =>
               handlerForUsers ! e
-              streamManager ! SaveProgress(envelope.sequenceNr)
+              streamManager ! SaveProgress(envelope.offset)
           }
         }
+
         }.runForeach(_ => ())
+
+  }
+
+  askForLastOffset.onFailure {
+    case NonFatal(e)=>
+      logger.error(e, "failed to get last offset")
   }
 
 }
@@ -79,9 +89,16 @@ class StreamManager extends PersistentActor with ActorLogging {
 
   override def persistenceId: String = "stream-manager"
 
+  override def preStart(): Unit = {
+    super.preStart()
+    log.debug("pre-start...")
+  }
+
   var lastOffsetProc: Long = 0L // initial value is 0
 
   override def receiveRecover: Receive = {
+    case RecoveryCompleted =>
+      log.debug("Recovery Completed")
     case ProgressAcknowledged(i) =>
       lastOffsetProc = i
   }
@@ -93,6 +110,7 @@ class StreamManager extends PersistentActor with ActorLogging {
       persist(ProgressAcknowledged(i)) {
         e => {
           lastOffsetProc = e.i
+          log.info("marked offset " + e.i)
           sender ! 'Success
         }
       }
@@ -109,7 +127,6 @@ object UserActor {
   def name = "Users"
 
   def props = Props[UserActor]
-
 
   sealed trait Query
 
