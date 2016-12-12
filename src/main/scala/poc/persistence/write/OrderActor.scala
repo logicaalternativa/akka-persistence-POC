@@ -91,9 +91,10 @@ class OrderActor extends PersistentActor with ActorLogging {
           onEvent(e)
           log.info("Persisted OrderInitialized event!")
         }
+        sender ! 'Success
       } else {
         log.info("Command rejected!")
-        sender ! "Cannot initialize order since it has already been initialized, cancelled or completed"
+        sender ! 'Failure
       }
 
     case command: Commands.CancelOrder =>

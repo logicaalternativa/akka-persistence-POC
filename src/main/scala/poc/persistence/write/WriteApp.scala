@@ -1,15 +1,25 @@
 package poc.persistence.write
 
-import akka.actor._
+import akka.actor.{ActorSystem, _}
 import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings}
-import poc.persistence.write.Commands.{CancelOrder, InitializeOrder}
-
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.server.Directives._
+import akka.stream.ActorMaterializer
+import org.json4s.{DefaultFormats, native}
+import poc.persistence.write.Commands.InitializeOrder
+import akka.pattern.ask
+import akka.http.scaladsl.model.StatusCodes._
+import akka.util.Timeout
 import scala.concurrent.duration._
+
 import scala.language.postfixOps
+import scala.util.{Failure, Success}
 
 object WriteApp extends App {
 
-  val system = ActorSystem("example")
+  implicit val system = ActorSystem("example")
+
+  implicit val actorMaterializer = ActorMaterializer()
 
   ClusterSharding(system).start(
     typeName = OrderActor.name,
@@ -21,35 +31,33 @@ object WriteApp extends App {
 
   val handler: ActorRef = ClusterSharding(system).shardRegion(OrderActor.name)
 
-  val randomCommandGenerator = system.actorOf(RandomCommandGenerator.props(handler), "random")
-  import system.dispatcher
+  import de.heikoseeberger.akkahttpjson4s.Json4sSupport._
 
-  system.scheduler.schedule(5 seconds, 10 seconds, randomCommandGenerator, 'SendRandomCommands)
+  implicit val serialization = native.Serialization // or native.Serialization
+  implicit val formats = DefaultFormats
 
-
-}
-
-object RandomCommandGenerator {
-
-  def props(handler: ActorRef) = Props(classOf[RandomCommandGenerator], handler)
-
-}
-
-class RandomCommandGenerator(handler: ActorRef) extends Actor {
-
-  def receive = {
-    case 'SendRandomCommands => {
-      val userId = util.Random.nextInt(10)
-      val orderId = util.Random.nextInt(20).toString
-      util.Random.nextBoolean() match {
-        case true => handler ! InitializeOrder(orderId, userId, Map())
-        case false => handler ! CancelOrder(orderId, userId)
+  val route =
+    path("order") {
+      path("initialize") {
+        post {
+          entity(as[InitializeOrder]) {
+            initializeOrderCommand => {
+              complete {
+                implicit val timeout = Timeout(5 seconds)
+                onComplete(handler ? initializeOrderCommand) {
+                  case Success('Success) => complete(OK)
+                  case Success('Rejected) => complete(BadRequest -> Map("message" -> "command rejected"))
+                  case Failure(_) => complete(InternalServerError -> Map("message" -> "internal server error"))
+                }
+              }
+            }
+          }
+        }
       }
     }
-  }
+
+  Http().bindAndHandle(route, "localhost", 8080)
 
 
 }
-
-
 
