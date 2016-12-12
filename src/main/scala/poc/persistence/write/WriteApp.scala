@@ -19,22 +19,25 @@ object WriteApp extends App {
   import akka.pattern.ask
   
   import poc.persistence.UtilActorSystem._
-  
+  import poc.persistence.HelperConsole._
   
   def console( orderReceiver: ActorRef, system : ActorSystem ) : Unit = {
     
-    import scala.io.StdIn._
-    
-    println( "Chose Command?  " )
-    println( "[ 1 ] to create InitializeOrder " )
-    println( "[ 2 ] to create CancelOrder " )
-    println( "[ <= 0 ] to exit " )
-    val id = readLong()
+    println( "\nChose Command?  " )
+    println( "[ 1 ] : Create InitializeOrder " )
+    println( "[ 2 ] : Create CancelOrder " )
+    println( "[ 0 ] : Exit " )
+     
+    val id = readLongFromConsole
     
     if ( id == 1 ) {
-      processResponse( orderReceiver ? InitializeOrder(1, "order1", 1) )( orderReceiver, system )
+      processResponse( orderReceiver ? InitializeOrder(1, "order1", 1) ) {
+        () => console( orderReceiver, system )
+      }
     } else if ( id == 2 ) {
-      processResponse( orderReceiver ? CancelOrder(2, "order1", 1 ) )( orderReceiver, system )
+      processResponse( orderReceiver ? CancelOrder(2, "order1", 1 ) ) {
+        () => console( orderReceiver, system )
+      }
     } else if ( id <= 0 ) {
       proccessTerminate( terminate( system ) )
     } else{ 
@@ -43,29 +46,6 @@ object WriteApp extends App {
     
   }
   
-  def proccessTerminate( response : Future[Terminated] ) : Unit = {
-    
-    response.onComplete {
-      case Success(msg) =>
-        println(s"········· Actor system terminated succesfully -> $msg ·········")
-      case Failure(e) =>
-        println(s"········· Error stopping actor system -> ${e.getMessage} ·········")
-      }
-    
-  }
-  
-  def processResponse( response : Future[Any] )( orderReceiver:ActorRef, system : ActorSystem ) : Unit = {
-    
-    response.onComplete {
-      case Success(msg) =>
-        println( s"********* Succesfully -> $msg *********" )
-        console( orderReceiver, system )
-      case Failure(e) =>
-        println( s"********* Error ->  ${e.getMessage} *********" )
-        console( orderReceiver, system )
-    }
-    
-  }
   
   starShardingRegions( system )
 

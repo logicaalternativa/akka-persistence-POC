@@ -1,9 +1,9 @@
 package poc.persistence.read
 
-import akka.actor._
+import akka.actor.{ActorLogging, Props}
 import akka.persistence.PersistentActor
 
-import akka.persistence.query._
+import akka.persistence.query.{Offset,NoOffset}
 
 object StreamManager {
 

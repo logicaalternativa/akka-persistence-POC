@@ -1,9 +1,11 @@
 package poc.persistence
 
-import akka.actor._
-import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings, ShardRegion}
+
 
 trait BaseObjectActor  {
+  
+  import akka.actor.{ActorSystem, ActorRef, Props}
+  import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings, ShardRegion}
 
   def name : String
   

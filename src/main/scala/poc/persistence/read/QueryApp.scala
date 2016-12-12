@@ -23,33 +23,24 @@ object QueryApp extends App {
   import system.dispatcher
   
   import poc.persistence.UtilActorSystem._
+  import poc.persistence.HelperConsole._
     
   def console( handlerForUsers: ActorRef, system : ActorSystem ) : Unit = {
     
     import scala.io.StdIn._
     
-    print( "\nHistory for user? (less than zero exit) " )
-    val userId = readLong()
+    println( "\nHistory for id user? " )
+    println( "[0] : Exit " )
+    val userId = readLongFromConsole
     
-    if ( userId < 0  ) {
-		
-      terminate( system ).onComplete {
-      case Success(msg) =>
-        println(s"········· Actor system terminated succesfully -> $msg ·········")
-      case Failure(e) =>
-        println(s"········· Error stopping actor system ${e.getMessage} ·········")
-      }
+    if ( userId <= 0  ) {
+      
+      proccessTerminate( terminate( system ) )
       
     } else {
       
-      (handlerForUsers ? GetHistoryFor(userId)).onComplete {
-      
-      case Success(msg) =>
-        println(s"********* HISTORY from user $userId -> \n $msg *********")
-        console( handlerForUsers, system ) 
-      case Failure(e) =>
-        println(s"********* Info from the exception when is request history :  ${e.getMessage} *********")
-        console( handlerForUsers, system )
+      processResponse( handlerForUsers ? GetHistoryFor( userId ) ) {
+        () => console( handlerForUsers, system )
       }
       
     }

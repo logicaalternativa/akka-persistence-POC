@@ -28,13 +28,11 @@ object ReadApp extends App {
   
   def console( system:ActorSystem ) : Unit = {
   
-     import scala.io.StdIn._
+     import poc.persistence.HelperConsole._
      
-     println( "" )
-     print( "Press return to exit" )
-     val id = readLong()
-     println( "\nterminating... " )
-     terminate( system )
+     println( "Type any number to exit" )
+     val id = readLongFromConsole
+      proccessTerminate( terminate( system ) )
   }
   
   starShardingRegions( system )
@@ -46,8 +44,8 @@ object ReadApp extends App {
   val askForLastOffset: Future[Any] = streamManager ? GetLastOffsetProc
 
   askForLastOffset.onFailure {
-    case _ => {
-      println("^^^^^^^^^ Failed to get last offset ^^^^^^^^^")
+    case e: Exception => {
+       log.error("Failed to get last offset -> {}", e.getMessage )
     }
   }
 
@@ -81,7 +79,7 @@ object ReadApp extends App {
         
   }
   
-  //~ console( system )
+  console( system )
   
 }
 
