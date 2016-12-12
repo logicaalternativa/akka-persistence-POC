@@ -80,6 +80,8 @@ class OrderActor extends PersistentActor with ActorLogging with AtLeastOnceDeliv
   import ShardRegion.Passivate
 
   import scala.concurrent.duration._
+  import akka.actor.Status._
+  
   context.setReceiveTimeout(120 seconds)
 
   // self.path.name is the entity identifier (utf-8 URL-encoded)
@@ -92,7 +94,7 @@ class OrderActor extends PersistentActor with ActorLogging with AtLeastOnceDeliv
       persist(Events.OrderInitialized(System.nanoTime(), o)) { e =>
         onEvent(e)
         log.info("Persisted OrderInitialized event!")
-           sender ! "Sucessfully persisted OrderInitialized "
+           sender ! Success( "Sucessfully persisted OrderInitialized")
       }
 
     case o: Commands.CancelOrder =>
@@ -101,13 +103,13 @@ class OrderActor extends PersistentActor with ActorLogging with AtLeastOnceDeliv
         persist(Events.OrderCancelled(System.nanoTime(), o)) { e =>
           onEvent(e)
           log.info("Persisted OrderCancelled event!")
-           sender ! "Sucessfully persisted OrderCancelled "
+           sender ! Success( "Sucessfully persisted OrderCancelled")
         }
 
       } else {
         // Sometimes you may want to persist an event OrderCancellationRequestRejected
         log.info("Command rejected!")
-        sender ! "Cannot cancel order if it is not in progress"
+        sender ! Failure( new Exception( "Cannot cancel order if it is not in progress") )
       }
 
     case ReceiveTimeout => context.parent ! Passivate(stopMessage = Stop)
