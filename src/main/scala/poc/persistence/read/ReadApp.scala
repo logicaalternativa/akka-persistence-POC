@@ -54,7 +54,7 @@ object ReadApp extends App {
       log.info( "We know the last offset -> {}", lastOffset)
       val query = PersistenceQuery(system)
         .readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
-        .eventsByTag("42", lastOffset )
+        .eventsByTag("byUser", lastOffset )
         .map { envelope => {
             envelope.event match {
               case e: poc.persistence.write.Events.OrderInitialized => {

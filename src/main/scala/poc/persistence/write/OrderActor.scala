@@ -142,10 +142,10 @@ class OrderTaggingEventAdapter extends WriteEventAdapter {
   override def toJournal(event: Any): Any = event match {
     case e: Events.OrderInitialized =>
       //~ println("########## Event Adapter Works ############")
-      Tagged(e, Set("42"))
+      Tagged(e, Set("byUser"))
     case e: Events.OrderCancelled =>
       //~ println("########## Event Adapter Works ############")
-      Tagged(e, Set("42"))
+      Tagged(e, Set("byUser"))
   }
 
   override def manifest(event: Any): String = ""
