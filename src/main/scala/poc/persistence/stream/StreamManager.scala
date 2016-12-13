@@ -1,4 +1,4 @@
-package poc.persistence.read
+package poc.persistence.stream
 
 import akka.actor.{ActorLogging, Props}
 import akka.persistence.PersistentActor

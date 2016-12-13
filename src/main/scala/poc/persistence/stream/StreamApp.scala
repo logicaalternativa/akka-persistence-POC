@@ -1,4 +1,4 @@
-package poc.persistence.read
+package poc.persistence.stream
 
 import akka.actor._
 import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings, ShardRegion}
@@ -11,9 +11,10 @@ import akka.persistence.query._
 import scala.concurrent.Future
 import scala.language.postfixOps
 
-object ReadApp extends App {
+object StreamApp extends App {
   
   import akka.event.Logging
+  import poc.persistence.read.UserActor
 
   import scala.concurrent.duration._
   implicit val timeout = akka.util.Timeout(10 seconds)
@@ -28,11 +29,12 @@ object ReadApp extends App {
   
   def console( system:ActorSystem ) : Unit = {
   
-     import poc.persistence.HelperConsole._
+    import poc.persistence.HelperConsole._
      
-     println( "Type any number to exit" )
-     val id = readLongFromConsole
-      proccessTerminate( terminate( system ) )
+    println( "Type any number to exit" )
+    val id = readLongFromConsole
+    proccessTerminate( terminate( system ) )
+    
   }
   
   starShardingRegions( system )

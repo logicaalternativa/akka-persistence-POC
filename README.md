@@ -11,7 +11,7 @@ Cassandra is needed to execute the POC
 
 ## Execute
 
-There are three applications. One of them writes *orders*, the second proccesses every event and sends this data to User. The third is the Query application (it is representated by *User* concept).
+There are three applications. One of them writes orders (_Order_ concept), the second proccesses every event and sends this data to User. The third is the Query application (it is representated by *User* concept).
 
 They could be run separately or all at once. It will be able to add other nodes (no seeder nodes) if it is changed the port (different to 2551, 2552 or 2553) 
 
@@ -28,7 +28,7 @@ Execution example:
 Execution example:
 
 ```
- java -cp 'target/pack/lib/*' -Dclustering.port=2552  poc.persistence.read.ReadApp
+ java -cp 'target/pack/lib/*' -Dclustering.port=2552  poc.persistence.stream.StreamApp
 ```
 
 ### Query app
