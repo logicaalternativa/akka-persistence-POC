@@ -5,11 +5,12 @@ import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
-import org.json4s.{DefaultFormats, native}
-import poc.persistence.write.Commands.InitializeOrder
+import org.json4s.{DefaultFormats, jackson}
+import poc.persistence.write.commands.InitializeOrder
 import akka.pattern.ask
 import akka.http.scaladsl.model.StatusCodes._
 import akka.util.Timeout
+
 import scala.concurrent.duration._
 
 import scala.language.postfixOps
@@ -32,17 +33,14 @@ object WriteApp extends App {
   val handler: ActorRef = ClusterSharding(system).shardRegion(OrderActor.name)
 
   import de.heikoseeberger.akkahttpjson4s.Json4sSupport._
-
-  implicit val serialization = native.Serialization // or native.Serialization
+  implicit val serialization = jackson.Serialization
   implicit val formats = DefaultFormats
 
   val route =
-    path("order") {
-      path("initialize") {
+    path("order" / "initialize") {
         post {
           entity(as[InitializeOrder]) {
-            initializeOrderCommand => {
-              complete {
+            (initializeOrderCommand: InitializeOrder) => {
                 implicit val timeout = Timeout(5 seconds)
                 onComplete(handler ? initializeOrderCommand) {
                   case Success('Success) => complete(OK)
@@ -53,11 +51,8 @@ object WriteApp extends App {
             }
           }
         }
-      }
-    }
 
   Http().bindAndHandle(route, "localhost", 8080)
-
 
 }
 

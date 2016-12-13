@@ -8,13 +8,14 @@ import akka.cluster.sharding.ShardRegion
 import akka.event.Logging
 import akka.persistence._
 import org.json4s.DefaultFormats
-import poc.persistence.write.Commands.{CancelOrder, InitializeOrder}
+import poc.persistence.write.commands.{CancelOrder, InitializeOrder}
+import poc.persistence.write.OrderState.OrdState
 
 import scala.language.postfixOps
 
-sealed trait OrdState
-
 package OrderState {
+
+  sealed trait OrdState
 
   case object NONE extends OrdState
 
@@ -26,21 +27,12 @@ package OrderState {
 
 }
 
-trait Command
-
-package Commands {
-
-  case class InitializeOrder(idOrder: String, idUser: Long, orderData: Map[String, String]) extends Command
-
-  case class CancelOrder(idOrder: String, idUser: Long) extends Command
-
-}
 
 sealed trait Event
 
 package Events {
 
-  case class OrderInitialized(idOrder: String, idUser: Long, orderData: Map[String, String]) extends Event
+  case class OrderInitialized(idOrder: String, idUser: Long, orderData: String) extends Event
 
   case class OrderCancelled(idOrder: String, idUser: Long) extends Event
 
@@ -84,7 +76,7 @@ class OrderActor extends PersistentActor with ActorLogging {
  var state: OrdState = OrderState.NONE
 
   val receiveCommand: Receive = {
-    case command: Commands.InitializeOrder =>
+    case command: commands.InitializeOrder =>
       log.info("Received InitializeOrder command!")
       if (state == OrderState.NONE) {
         persist(Events.OrderInitialized(command.idOrder, command.idUser, command.orderData)) { e =>
@@ -97,7 +89,7 @@ class OrderActor extends PersistentActor with ActorLogging {
         sender ! 'Failure
       }
 
-    case command: Commands.CancelOrder =>
+    case command: commands.CancelOrder =>
       if (state == OrderState.IN_PROGRESS) {
         log.info("Received CancelOrder command!")
         persist(Events.OrderCancelled(command.idOrder,command.idUser)) { e =>
@@ -160,7 +152,7 @@ import akka.serialization.Serializer
 
 class EventSerialization(actorSystem: ExtendedActorSystem) extends Serializer {
 
-  import org.json4s.native.Serialization.{read, write}
+  import org.json4s.jackson.Serialization.{read, write}
 
   private val log = Logging.getLogger(actorSystem, this)
 
