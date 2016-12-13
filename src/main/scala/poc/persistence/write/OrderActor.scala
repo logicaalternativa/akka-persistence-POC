@@ -32,7 +32,7 @@ sealed trait Event
 
 package Events {
 
-  case class OrderInitialized(idOrder: String, idUser: Long, orderData: String) extends Event
+  case class OrderInitialized(idOrder: String, idUser: Long) extends Event
 
   case class OrderCancelled(idOrder: String, idUser: Long) extends Event
 
@@ -79,14 +79,14 @@ class OrderActor extends PersistentActor with ActorLogging {
     case command: commands.InitializeOrder =>
       log.info("Received InitializeOrder command!")
       if (state == OrderState.NONE) {
-        persist(Events.OrderInitialized(command.idOrder, command.idUser, command.orderData)) { e =>
+        persist(Events.OrderInitialized(command.idOrder, command.idUser)) { e =>
           onEvent(e)
           log.info("Persisted OrderInitialized event!")
         }
-        sender ! 'Success
+        sender ! 'CommandAccepted
       } else {
         log.info("Command rejected!")
-        sender ! 'Failure
+        sender ! 'CommandRejected
       }
 
     case command: commands.CancelOrder =>
@@ -96,10 +96,11 @@ class OrderActor extends PersistentActor with ActorLogging {
           onEvent(e)
           log.info("Persisted OrderCancelled event!")
         }
+        sender ! 'CommandAccepted
       } else {
         // Sometimes you may want to persist an event: OrderCancellationRequestRejected
         log.info("Command rejected!")
-        sender ! "Cannot cancel order if it is not in progress"
+        sender ! 'CommandRejected
       }
 
     case ReceiveTimeout =>
