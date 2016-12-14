@@ -33,5 +33,26 @@ Note that if you try to cancel the order again, you'll get a rejection message.
 {"message":"command rejected"}
 ```
 
+Connect to Cassandra using *cqlsh*.
+
+Issue the following commands:
+
+```
+$ ccm node1 cqlsh
+Connected to test at 127.0.0.1:9042.
+[cqlsh 5.0.1 | Cassandra 3.0.8 | CQL spec 3.4.0 | Native protocol v4]
+Use HELP for help.
+cqlsh> USE akka;
+cqlsh:akka> SELECT persistence_id, sequence_nr, ser_manifest, blobastext(event) AS event FROM messages;
+
+ persistence_id | sequence_nr | ser_manifest                            | event
+----------------+-------------+-----------------------------------------+-----------------------------
+              1 |           1 | poc.persistence.events.OrderInitialized | {"idOrder":"1","idUser":42}
+              1 |           2 |   poc.persistence.events.OrderCancelled | {"idOrder":"1","idUser":42}
+
+(2 rows)
+cqlsh:akka>
+```
+
 Now run the read side of the application.
 
