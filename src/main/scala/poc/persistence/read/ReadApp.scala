@@ -12,9 +12,9 @@ import akka.persistence.query._
 import akka.persistence.{PersistentActor, RecoveryCompleted}
 import akka.stream.ActorMaterializer
 import org.json4s.{DefaultFormats, jackson}
+import poc.persistence.events.{Event, OrderCancelled, OrderInitialized}
 import poc.persistence.read.StreamManager.{GetLastOffsetProcessed, ProgressAcknowledged, SaveProgress}
 import poc.persistence.read.UserActor.{GetHistory, History, LabelledEvent}
-import poc.persistence.write.Events.OrderCancelled
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -54,10 +54,10 @@ object ReadApp extends App {
         .eventsByTag("UserEvent", lastOffset + 1)
         .map { envelope => {
           envelope.event match {
-            case e: poc.persistence.write.Events.OrderInitialized =>
+            case e: OrderInitialized =>
               handlerForUsers ! e
               streamManager ! SaveProgress(envelope.offset)
-            case e: poc.persistence.write.Events.OrderCancelled =>
+            case e: OrderCancelled =>
               handlerForUsers ! e
               streamManager ! SaveProgress(envelope.offset)
           }
@@ -133,9 +133,6 @@ class StreamManager extends PersistentActor with ActorLogging {
 
 }
 
-
-import poc.persistence.write.Events.OrderInitialized
-
 object UserActor {
 
   def name = "Users"
@@ -144,7 +141,7 @@ object UserActor {
 
   sealed trait Query
 
-  case class LabelledEvent(name: String, event: poc.persistence.write.Event)
+  case class LabelledEvent(name: String, event: Event)
 
   case class History(list: List[LabelledEvent])
 
