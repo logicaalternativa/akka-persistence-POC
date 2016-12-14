@@ -13,8 +13,10 @@ import akka.persistence.{PersistentActor, RecoveryCompleted}
 import akka.stream.ActorMaterializer
 import org.json4s.{DefaultFormats, jackson}
 import poc.persistence.events.{Event, OrderCancelled, OrderInitialized}
+import poc.persistence.read.events.LabelledEvent
 import poc.persistence.read.StreamManager.{GetLastOffsetProcessed, ProgressAcknowledged, SaveProgress}
-import poc.persistence.read.UserActor.{GetHistory, History, LabelledEvent}
+import poc.persistence.read.UserActor.{GetHistory, History}
+import poc.persistence.read.events.LabelledEvent
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -75,14 +77,16 @@ object ReadApp extends App {
   implicit val serialization = jackson.Serialization
   implicit val formats = DefaultFormats
 
-  val route = path("users" / Segment) {
-    userId:String => {
+  val route = get {
+    path("users" / Segment) {
+      userId: String => {
         onComplete(handlerForUsers ? UserActor.GetHistoryFor(userId.toLong)) {
           case Success(History(events)) => complete(events)
           case Failure(_) | Success(_) => complete(InternalServerError -> Map("mesage" -> "internal server error"))
         }
       }
     }
+  }
 
   Http().bindAndHandle(route, "localhost", 8080)
 
@@ -133,6 +137,13 @@ class StreamManager extends PersistentActor with ActorLogging {
 
 }
 
+package events {
+
+  case class LabelledEvent(name: String, event: Event)
+
+}
+
+
 object UserActor {
 
   def name = "Users"
@@ -141,7 +152,7 @@ object UserActor {
 
   sealed trait Query
 
-  case class LabelledEvent(name: String, event: Event)
+
 
   case class History(list: List[LabelledEvent])
 
