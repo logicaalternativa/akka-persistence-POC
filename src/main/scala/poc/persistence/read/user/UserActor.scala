@@ -57,7 +57,7 @@ class UserActor extends PersistentActor with ActorLogging {
         }
       }
     case GetHistory =>
-      History ( myEvents.reverse.map {
+      sender ! History ( myEvents.reverse.map {
         case event: UserInitializedOrder => "UserInitializedOrder" -> event
         case event: UserCancelledOrder => "UserCancelledOrder" -> event
       } )

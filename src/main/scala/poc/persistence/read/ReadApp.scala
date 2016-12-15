@@ -27,7 +27,7 @@ import scala.util.{Failure, Success}
 
 object ReadApp extends App {
 
-  implicit val timeout = akka.util.Timeout(10 seconds)
+  implicit val timeout = akka.util.Timeout(15 seconds)
 
   implicit val system = ActorSystem("example")
   implicit val materializer = ActorMaterializer()
@@ -81,9 +81,11 @@ object ReadApp extends App {
   val route = get {
     path("users" / Segment) {
       userId: String => {
-        onComplete(handlerForUsers ? GetHistoryFor(userId.toLong)) {
-          case Success(History(namedEvents)) => complete(namedEvents)
-          case Failure(_) | Success(_) => complete(InternalServerError -> Map("mesage" -> "internal server error"))
+        onComplete((handlerForUsers ? GetHistoryFor(userId.toLong)).mapTo[History]) {
+          case Success(history: History) => complete(history)
+          case Failure(ex) =>
+            logger.error("failed to get history for user with id {}", ex, userId)
+            complete(InternalServerError -> Map("mesage" -> "internal server error"))
         }
       }
     }
