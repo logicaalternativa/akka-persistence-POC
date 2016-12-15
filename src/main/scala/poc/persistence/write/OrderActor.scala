@@ -71,7 +71,6 @@ class OrderActor extends PersistentActor with ActorLogging {
         }
         sender ! 'CommandAccepted
       } else {
-        log.info("Command rejected!")
         sender ! 'CommandRejected
       }
 
@@ -85,7 +84,6 @@ class OrderActor extends PersistentActor with ActorLogging {
         sender ! 'CommandAccepted
       } else {
         // Sometimes you may want to persist an event: OrderCancellationRequestRejected
-        log.info("Command rejected!")
         sender ! 'CommandRejected
       }
 
