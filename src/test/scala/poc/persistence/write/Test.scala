@@ -12,6 +12,5 @@ class Test extends FunSuite {
     val result: InitializeOrder = org.json4s.jackson.Serialization.read[InitializeOrder](data)
     assert(result.idOrder == "1")
     assert(result.idUser == 42)
-    assert(result.orderData == "something")
   }
 }

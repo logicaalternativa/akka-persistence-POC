@@ -70,3 +70,9 @@ You should see this:
 ```
 [{"name":"OrderInitialized","event":{"idOrder":"1","idUser":42}}, {"name":"OrderCancelled","event":{"idOrder":"1","idUser":42}}]
 ```
+
+You can always remove the *test* Cassandra cluster in *ccm* by writing:
+
+```
+ccm remove test
+```

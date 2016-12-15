@@ -13,7 +13,7 @@ import akka.persistence.{PersistentActor, RecoveryCompleted}
 import akka.stream.ActorMaterializer
 import org.json4s.{DefaultFormats, jackson}
 import poc.persistence.events.{Event, OrderCancelled, OrderInitialized}
-import poc.persistence.read.StreamManager.{GetLastOffsetProcessed, ProgressAcknowledged, SaveProgress}
+import poc.persistence.read.StreamManager.{GetLastOffsetProcessed, SaveProgress}
 import poc.persistence.read.UserActor.{GetHistory, History}
 import poc.persistence.read.events.LabelledEvent
 
@@ -92,6 +92,8 @@ object ReadApp extends App {
 }
 
 
+case class ProgressAcknowledged(i: Long)
+
 object StreamManager {
 
   def props = Props[StreamManager]
@@ -100,7 +102,6 @@ object StreamManager {
 
   case class SaveProgress(i: Long)
 
-  case class ProgressAcknowledged(i: Long)
 }
 
 
