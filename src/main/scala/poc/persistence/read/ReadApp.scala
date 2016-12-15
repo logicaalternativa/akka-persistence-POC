@@ -11,11 +11,11 @@ import akka.persistence.cassandra.query.scaladsl.CassandraReadJournal
 import akka.persistence.query._
 import akka.persistence.{PersistentActor, RecoveryCompleted}
 import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.Sink
 import org.json4s.{DefaultFormats, jackson}
 import poc.persistence.events.{Event, OrderCancelled, OrderInitialized}
 import poc.persistence.read.StreamManager.{GetLastOffsetProcessed, SaveProgress}
 import poc.persistence.read.UserActor.{GetHistory, History}
-import poc.persistence.read.events.LabelledEvent
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -63,7 +63,7 @@ object ReadApp extends App {
               streamManager ! SaveProgress(envelope.offset)
           }
         }
-        }.runForeach(_ => ())
+        }.runWith(Sink.ignore)
   }
 
   askForLastOffset.onFailure {
@@ -104,7 +104,6 @@ object StreamManager {
 
 }
 
-
 class StreamManager extends PersistentActor with ActorLogging {
 
   override def persistenceId: String = "stream-manager"
@@ -137,13 +136,6 @@ class StreamManager extends PersistentActor with ActorLogging {
 
 }
 
-package events {
-
-  case class LabelledEvent(name: String, event: Event)
-
-}
-
-
 object UserActor {
 
   def name = "Users"
@@ -152,7 +144,7 @@ object UserActor {
 
   sealed trait Query
 
-  case class History(list: List[LabelledEvent])
+  case class History(list: List[(String, poc.persistence.events.Event)])
 
   case object GetHistory extends Query
 
@@ -174,39 +166,44 @@ object UserActor {
   // is the message that the "handler" receives
   def extractEntityId: ShardRegion.ExtractEntityId = {
     case event: OrderInitialized =>
-      (event.idUser.toString, LabelledEvent("OrderInitialized", event))
+      (event.idUser.toString, event)
     case event: OrderCancelled =>
-      (event.idUser.toString, LabelledEvent("OrderCancelled", event))
+      (event.idUser.toString, event)
     case query: GetHistoryFor =>
       (query.idUser.toString, GetHistory)
   }
 
 }
 
-
 class UserActor extends PersistentActor with ActorLogging {
 
-  var allEvents = List[LabelledEvent]()
+  var myEvents = List[poc.persistence.events.Event]()
 
   override def persistenceId: String = self.path.name
 
   override def receiveCommand = {
-    case e: LabelledEvent =>
+    case e: Event =>
       log.info("received event")
       persist(e) { e =>
         log.info("persisted event")
         onEvent(e)
       }
     case GetHistory =>
-      sender ! History(allEvents.reverse)
+      sender ! History(myEvents.reverse.map {
+        (e: Event) => { e match {
+          case orderInitialized: OrderInitialized => ("OrderInitialized", orderInitialized)
+          case orderCancelled: OrderCancelled => ("OrderCancelled", orderCancelled)
+        }
+        }
+      })
   }
 
-  def onEvent(e: LabelledEvent)  = {
-    allEvents  = e :: allEvents
+  def onEvent(e: poc.persistence.events.Event)  = {
+    myEvents  = e :: myEvents
   }
 
   override def receiveRecover: Receive = {
-    case e: LabelledEvent =>
+    case e: Event =>
       onEvent(e)
     case RecoveryCompleted =>
       log.debug("recovery completed")

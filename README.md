@@ -71,8 +71,28 @@ You should see this:
 [{"name":"OrderInitialized","event":{"idOrder":"1","idUser":42}}, {"name":"OrderCancelled","event":{"idOrder":"1","idUser":42}}]
 ```
 
+Go into *cqlsh* again. You should see this.
+
+```
+cqlsh> USE akka;
+cqlsh:akka> SELECT persistence_id, sequence_nr, ser_manifest, blobastext(event) AS event FROM messages;
+
+ persistence_id | sequence_nr | ser_manifest                              | event
+----------------+-------------+-------------------------------------------+-----------------------------------------------------------------
+              1 |           1 |   poc.persistence.events.OrderInitialized |                                     {"idOrder":"1","idUser":42}
+              1 |           2 |     poc.persistence.events.OrderCancelled |                                     {"idOrder":"1","idUser":42}
+ stream-manager |           1 | poc.persistence.read.ProgressAcknowledged |                                             {"i":1481809993833}
+ stream-manager |           2 | poc.persistence.read.ProgressAcknowledged |                                             {"i":1481810010138}
+             42 |           1 | poc.persistence.read.events.LabelledEvent | {"name":"OrderInitialized","event":{"idOrder":"1","idUser":42}}
+             42 |           2 | poc.persistence.read.events.LabelledEvent |   {"name":"OrderCancelled","event":{"idOrder":"1","idUser":42}}
+
+(6 rows)
+cqlsh:akka>
+```
+
 You can always remove the *test* Cassandra cluster in *ccm* by writing:
 
 ```
 ccm remove test
 ```
+

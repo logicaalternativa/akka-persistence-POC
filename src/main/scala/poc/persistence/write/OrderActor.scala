@@ -4,7 +4,7 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.cluster.sharding.ShardRegion
 import akka.persistence._
-import poc.persistence.events.{Event, OrderCancelled, OrderInitialized}
+import poc.persistence.events.{OrderCancelled, OrderInitialized}
 import poc.persistence.write.OrderState.OrdState
 import poc.persistence.write.commands.{CancelOrder, InitializeOrder}
 
@@ -100,13 +100,13 @@ class OrderActor extends PersistentActor with ActorLogging {
   def receiveRecover = {
     case RecoveryCompleted =>
       log.info("Recovery completed. Replayed {} events!", numEvents)
-      case e: Event =>
+      case e: AnyRef =>
         numEvents = numEvents + 1
         onEvent(e)
       case _ =>
   }
 
-  def onEvent(e: Event) = {
+  def onEvent(e: AnyRef) = {
     e match {
       case e: OrderInitialized =>
         state = OrderState.IN_PROGRESS
