@@ -68,10 +68,34 @@ $ curl -H "Content-Type: application/json" -X GET http://localhost:8080/users/42
 You should see this:
 
 ```
-[{"name":"OrderInitialized","event":{"idOrder":"1","idUser":42}}, {"name":"OrderCancelled","event":{"idOrder":"1","idUser":42}}]
+{"history":[{"UserInitializedOrder":{"idOrder":"1","idUser":42}},{"UserCancelledOrder":{"idOrder":"1","idUser":42}}]}
 ```
 
 Go into *cqlsh* again. You should see this.
+
+```
+$ ccm node1 cqlsh
+Connected to test at 127.0.0.1:9042.
+[cqlsh 5.0.1 | Cassandra 3.0.8 | CQL spec 3.4.0 | Native protocol v4]
+Use HELP for help.
+cqlsh> USE akka;
+cqlsh:akka> SELECT persistence_id, sequence_nr, ser_manifest, blobastext(event) AS event FROM messages;
+
+ persistence_id | sequence_nr | ser_manifest                                                   | event
+----------------+-------------+----------------------------------------------------------------+-----------------------------
+              1 |           1 |                        poc.persistence.events.OrderInitialized | {"idOrder":"1","idUser":42}
+              1 |           2 |                          poc.persistence.events.OrderCancelled | {"idOrder":"1","idUser":42}
+ stream-manager |           1 | poc.persistence.read.streammanager.events.ProgressAcknowledged |         {"i":1481825522840}
+ stream-manager |           2 | poc.persistence.read.streammanager.events.ProgressAcknowledged |         {"i":1481825526154}
+             42 |           1 |          poc.persistence.read.user.events.UserInitializedOrder | {"idOrder":"1","idUser":42}
+             42 |           2 |            poc.persistence.read.user.events.UserCancelledOrder | {"idOrder":"1","idUser":42}
+
+(6 rows)
+cqlsh:akka>
+
+```
+
+Done!
 
 You can always remove the *test* Cassandra cluster in *ccm* by writing:
 
