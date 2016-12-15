@@ -35,10 +35,13 @@ Note that if you try to cancel the order again, you'll get a rejection message.
 
 Connect to Cassandra using *cqlsh*.
 
+```
+ccm node1 cqlsh
+```
+
 Issue the following commands:
 
-```
-$ ccm node1 cqlsh
+``` 
 Connected to test at 127.0.0.1:9042.
 [cqlsh 5.0.1 | Cassandra 3.0.8 | CQL spec 3.4.0 | Native protocol v4]
 Use HELP for help.
@@ -56,3 +59,14 @@ cqlsh:akka>
 
 Now run the read side of the application.
 
+Issue the following curl commands:
+
+```
+$ curl -H "Content-Type: application/json" -X GET http://localhost:8080/users/42
+```
+
+You should see this:
+
+```
+[{"name":"OrderInitialized","event":{"idOrder":"1","idUser":42}}, {"name":"OrderCancelled","event":{"idOrder":"1","idUser":42}}]
+```
