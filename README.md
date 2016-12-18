@@ -13,7 +13,7 @@ Create a *test* cluster:
 
 ``` ccm create test -v 3.0.8 -n 3 -s ```
 
-Run the command side of the application.
+Run the command side of the application: ```$sbt run``` and select ```WriteApp```
 
 Initialize an order:
 
@@ -57,12 +57,12 @@ cqlsh:akka> SELECT persistence_id, sequence_nr, ser_manifest, blobastext(event) 
 cqlsh:akka>
 ```
 
-Now run the read side of the application.
+Now run the read side of the application: ```$sbt run``` and select ```ReadApp```
 
 Issue the following curl commands:
 
 ```
-$ curl -H "Content-Type: application/json" -X GET http://localhost:8080/users/42
+$ curl -X GET http://localhost:8080/users/42
 ```
 
 You should see this:
