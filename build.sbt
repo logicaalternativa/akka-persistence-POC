@@ -4,6 +4,8 @@ version := "2.4.4"
 
 scalaVersion := "2.11.8"
 
+mainClass in Compile := Some("poc.persistence.write.WriteApp")
+
 libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-persistence-query-experimental" % "2.4.10",
   "com.typesafe.akka" %% "akka-actor" % "2.4.4",

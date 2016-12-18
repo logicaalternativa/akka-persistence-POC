@@ -63,7 +63,13 @@ class OrderActor extends PersistentActor with ActorLogging {
 
   val receiveCommand: Receive = {
     case command: commands.InitializeOrder =>
-      log.info("Received InitializeOrder command!")
+      log.info(
+        """
+          |\n
+          |*********************************
+          | Received InitializeOrder command
+          |*********************************
+          |\n""".stripMargin)
       if (state == OrderState.NONE) {
         persist(OrderInitialized(command.idOrder, command.idUser)) { e =>
           onEvent(e)
@@ -76,7 +82,13 @@ class OrderActor extends PersistentActor with ActorLogging {
 
     case command: commands.CancelOrder =>
       if (state == OrderState.IN_PROGRESS) {
-        log.info("Received CancelOrder command!")
+        log.info(
+          """
+            |\n
+            |****************************
+            |Received CancelOrder command
+            |****************************
+            |\n""".stripMargin)
         persist(OrderCancelled(command.idOrder,command.idUser)) { e =>
           onEvent(e)
           log.info("Persisted OrderCancelled event!")

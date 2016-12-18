@@ -10,6 +10,7 @@ import poc.persistence.write.commands.{CancelOrder, InitializeOrder}
 import akka.pattern.ask
 import akka.http.scaladsl.model.StatusCodes._
 import akka.util.Timeout
+import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -19,7 +20,10 @@ object WriteApp extends App {
 
   implicit val system = ActorSystem("example")
 
+  val conf = ConfigFactory.load()
+
   implicit val actorMaterializer = ActorMaterializer()
+
 
   ClusterSharding(system).start(
     typeName = OrderActor.name,
@@ -64,7 +68,7 @@ object WriteApp extends App {
         }
       }
 
-  Http().bindAndHandle(route, "localhost", 8080)
+  Http().bindAndHandle(route, "localhost", conf.getInt("web.port"))
 
 }
 
