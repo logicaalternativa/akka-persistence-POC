@@ -1,5 +1,7 @@
-Use *ccm* to start a Cassandra Cluster
-======================================
+Quick Start 
+===========
+
+Use *ccm* to start a Cassandra cluster.
 
 Get *ccm* from https://github.com/pcmanus/ccm. Follow the instructions to install.
 
@@ -102,4 +104,42 @@ You can always remove the *test* Cassandra cluster in *ccm* by writing:
 ```
 ccm remove test
 ```
+
+Running a Cluster
+=================
+
+Run
+
+```
+$ sbt universal:packageBin
+```
+
+This produces a zip file.
+ 
+ ```
+ $ cd target/universal
+ $ unzip akka-persistence-poc-2.4.4.zip
+ ```
+
+This produces an executable file under ```./akka-persistence-poc-2.4.4/bin```
+
+Run the seed node:
+
+```
+$ ./akka-persistence-poc
+```
+
+Run two more nodes:
+
+```
+$ ./akka-persistence-poc -Dclustering.port=2552 -Dweb.port=8081
+```
+
+```
+$ ./akka-persistee-poc -Dclustering.port=2553 -Dweb.port=8082
+```
+
+
+
+
 
