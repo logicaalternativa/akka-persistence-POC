@@ -1,26 +1,39 @@
 package poc.persistence.read
 
-import akka.actor._
-import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings, ShardRegion}
+import akka.actor.{ActorSystem, _}
+import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings}
+import akka.event.Logging
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.server.Directives._
 import akka.pattern.ask
-import akka.persistence.PersistentActor
 import akka.persistence.cassandra.query.scaladsl.CassandraReadJournal
+import akka.persistence.query._
 import akka.stream.ActorMaterializer
-import poc.persistence.write.Events.OrderCancelled
+import akka.stream.scaladsl.Sink
+import org.json4s.{DefaultFormats, jackson}
+import poc.persistence.events.{OrderCancelled, OrderInitialized}
+import poc.persistence.read.streammanager.StreamManager
+import poc.persistence.read.streammanager.commands.SaveProgress
+import poc.persistence.read.streammanager.queries.GetLastOffsetProcessed
+import poc.persistence.read.user.UserActor
+import poc.persistence.read.user.queries.{GetHistoryFor, History}
 
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.control.NonFatal
+import scala.util.{Failure, Success}
 
 object ReadApp extends App {
 
-
-  import scala.concurrent.duration._
-  implicit val timeout = akka.util.Timeout(10 seconds)
-
-  import akka.persistence.query._
+  implicit val timeout = akka.util.Timeout(15 seconds)
 
   implicit val system = ActorSystem("example")
   implicit val materializer = ActorMaterializer()
+
+  val logger = Logging.getLogger(system, this)
+
   import system.dispatcher
 
   ClusterSharding(system).start(
@@ -31,140 +44,54 @@ object ReadApp extends App {
     extractEntityId = UserActor.extractEntityId
   )
 
-  val handlerForUsers: ActorRef = ClusterSharding(system)
-    .shardRegion(UserActor.name)
+  val handlerForUsers: ActorRef = ClusterSharding(system).shardRegion(UserActor.name)
 
-  val streamManager = system.actorOf(StreamManager.props)
+  val streamManager = system.actorOf(StreamManager.props, "stream-manager")
 
-  val askForLastOffset: Future[Any] = streamManager ? GetLastOffsetProc
+  val askForLastOffset: Future[Long] = (streamManager ? GetLastOffsetProcessed).mapTo[Long]
+
+  askForLastOffset.onSuccess {
+    case lastOffset: Long =>
+      PersistenceQuery(system)
+        .readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
+        .eventsByTag("UserEvent", lastOffset + 1)
+        .map { envelope => {
+          envelope.event match {
+            case e: OrderInitialized =>
+              handlerForUsers ! e
+              streamManager ! SaveProgress(envelope.offset)
+            case e: OrderCancelled =>
+              handlerForUsers ! e
+              streamManager ! SaveProgress(envelope.offset)
+          }
+        }
+        }.runWith(Sink.ignore)
+  }
 
   askForLastOffset.onFailure {
-    case _ => {
-      println("^^^^^^^^^ Failed to get last offset ^^^^^^^^^")
+    case NonFatal(e)=>
+      logger.error(e, "failed to get last offset")
+  }
+
+
+  import de.heikoseeberger.akkahttpjson4s.Json4sSupport._
+  implicit val serialization = jackson.Serialization
+  implicit val formats = DefaultFormats
+
+  val route = get {
+    path("users" / Segment) {
+      userId: String => {
+        onComplete((handlerForUsers ? GetHistoryFor(userId.toLong)).mapTo[History]) {
+          case Success(history: History) => complete(history)
+          case Failure(ex) =>
+            logger.error("failed to get history for user with id {}", ex, userId)
+            complete(InternalServerError -> Map("mesage" -> "internal server error"))
+        }
+      }
     }
   }
 
-  askForLastOffset.mapTo[Long].onSuccess {
-    case lastOffset: Long =>
-      println("^^^^^^^^^ We know the last offset ^^^^^^^^^" + lastOffset)
-      val query = PersistenceQuery(system)
-        .readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
-        .eventsByTag("42", Offset.sequence(lastOffset))
-        .map { envelope => {
-          envelope.event match {
-            case e: poc.persistence.write.Events.OrderInitialized => {
-              handlerForUsers ! e
-              streamManager ! SaveProgress(envelope.sequenceNr)
-              println("^^^^^^^^^ Saved Progress ^^^^^^^^^")
-            }
-            case e: poc.persistence.write.Events.OrderCancelled => {
-              handlerForUsers ! e
-              streamManager ! SaveProgress(envelope.sequenceNr)
-            }
-            case _ =>
-              println("^^^^^^^^^ I don't understand ^^^^^^^^^")
-          }
-        }
-        }.runForeach(f => println("Processed one element!"))
-  }
-
-
-
-  (handlerForUsers ? GetHistoryFor(1)).onSuccess {
-    case s => println(s)
-  }
-}
-
-object StreamManager {
-
-  def props = Props[StreamManager]
+  Http().bindAndHandle(route, "localhost", 8080)
 
 }
-
-case object GetLastOffsetProc
-
-case class SaveProgress(i: Long)
-
-case class ProgressAcknowledged(i: Long)
-
-class StreamManager extends PersistentActor with ActorLogging {
-
-  implicit val mat = ActorMaterializer()
-  var lastOffsetProc: Long = 0L // initial value is 0
-
-  override def receiveRecover: Receive = {
-    case ProgressAcknowledged(i) =>
-      lastOffsetProc = i
-  }
-
-  override def receiveCommand: Receive = {
-    case GetLastOffsetProc =>
-      sender ! lastOffsetProc
-    case SaveProgress(i: Long) =>
-      persist(ProgressAcknowledged(i)) {
-        e => {
-          lastOffsetProc = e.i
-          sender ! 'Success
-        }
-      }
-  }
-
-  def onEvent(e: AnyRef) = ??? // implement mas tarde
-
-  override def persistenceId: String = "stream-manager"
-}
-
-
-import poc.persistence.write.Event
-import poc.persistence.write.Events.OrderInitialized
-
-sealed trait Query
-
-case object GetHistory extends Query
-
-case class GetHistoryFor(idUser:Long) extends Query
-
-object UserActor {
-
-  def name = "Users"
-
-  def props = Props[UserActor]
-
-
-  // the input for the extractShardId function
-  // is the message that the "handler" receives
-  def extractShardId: ShardRegion.ExtractShardId = {
-    case msg: Event =>
-      (msg.timeStamp % 2).toString
-    case _ => "1"
-  }
-
-  // the input for th extractEntityId function
-  // is the message that the "handler" receives
-  def extractEntityId: ShardRegion.ExtractEntityId = {
-    case msg: OrderInitialized =>
-      (msg.order.idUser.toString, msg)
-    case msg: OrderCancelled =>
-      (msg.order.idUser.toString, msg)
-    case msg: GetHistoryFor =>
-      (msg.idUser.toString, GetHistory)
-
-  }
-
-}
-
-class UserActor extends Actor with ActorLogging {
-
-  var history: List[poc.persistence.write.Event] = List()
-
-  override def receive = {
-    case e: Event =>
-      history = e :: history
-    case GetHistory =>
-      sender ! history.mkString(",")
-  }
-
-}
-
-
 
