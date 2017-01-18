@@ -33,29 +33,47 @@ trait WithUser {
   val idUser: Long
 }
 
+sealed trait Event {
+  val timeStamp: Long
+}
+
+sealed trait EventOrder extends Event {
+}
+
 package Commands {
 
   case class InitializeOrder(idMsg: Long, idOrder: String, idUser: Long) extends WithUser with WithOrder
 
   case class CancelOrder(idMsg: Long, idOrder: String, idUser: Long) extends WithUser with WithOrder
+  
+  case class AckOrder( idDeliver : Long )
+  
+  case class EnvelopeOrderWithAck( ack : AckOrder, fromActor: ActorRef, event : EventOrder )
 
 }
 
-sealed trait Event {
-  val timeStamp: Long
-}
 
 package Events {
 
-  case class OrderInitialized(timeStamp: Long, order: Commands.InitializeOrder) extends Event
+  case class OrderInitialized(timeStamp: Long, order: Commands.InitializeOrder) extends EventOrder
 
-  case class OrderCancelled(timeStamp: Long, order: Commands.CancelOrder) extends Event
+  case class OrderCancelled(timeStamp: Long, order: Commands.CancelOrder) extends EventOrder
+  
+  case class AckConfirmed( timeStamp: Long, idDeliver : Long ) extends Event
 
 }
 
 object OrderActor extends BaseObjectActor {
+  
+  import akka.stream.Materializer
 
-  protected def props = Props(classOf[OrderActor])
+  protected def props( implicit system : ActorSystem  ) =  {
+    
+    import poc.persistence.stream.StreamToQuery._
+  
+    Props(classOf[OrderActor], actorStream )
+   
+ }
 
   val name = "orders"
 
@@ -75,12 +93,17 @@ object OrderActor extends BaseObjectActor {
 
 }
 
-class OrderActor extends PersistentActor with ActorLogging with AtLeastOnceDelivery {
+class OrderActor( streamActor : ActorRef ) 
+  extends PersistentActor 
+    with ActorLogging 
+      with AtLeastOnceDelivery {
 
   import ShardRegion.Passivate
 
   import scala.concurrent.duration._
   import akka.actor.Status._
+  import Commands._
+  import Events._    
   
   context.setReceiveTimeout(120 seconds)
 
@@ -89,21 +112,28 @@ class OrderActor extends PersistentActor with ActorLogging with AtLeastOnceDeliv
 
 
   val receiveCommand: Receive = {
-    case o: Commands.InitializeOrder =>
+    
+    case o: InitializeOrder =>
       log.info("Received InitializeOrder command! . I am {}", self.path)
-      persist(Events.OrderInitialized(System.nanoTime(), o)) { e =>
+      persist( OrderInitialized(System.nanoTime(), o)) { e =>
         onEvent(e)
         log.info("Persisted OrderInitialized event!")
-           sender ! Success( "Sucessfully persisted OrderInitialized")
+        sender ! Success( "Sucessfully persisted OrderInitialized")
+      }
+    
+    case AckOrder( idDeliver ) =>    
+      log.info("Recived AckOrder. IdDeliver = {}. I am {}", idDeliver, self.path )
+      persist( AckConfirmed( System.nanoTime(), idDeliver ) ) {
+          e => onEvent( e )
       }
 
     case o: Commands.CancelOrder =>
       if (state == StateOrder.IN_PROGRESS) {
         log.info("Received CancelOrder command!. I am {}", self.path)
-        persist(Events.OrderCancelled(System.nanoTime(), o)) { e =>
+        persist( OrderCancelled(System.nanoTime(), o) ) { e =>
           onEvent(e)
           log.info("Persisted OrderCancelled event!")
-           sender ! Success( "Sucessfully persisted OrderCancelled")
+          sender ! Success( "Sucessfully persisted OrderCancelled")
         }
 
       } else {
@@ -125,13 +155,21 @@ class OrderActor extends PersistentActor with ActorLogging with AtLeastOnceDeliv
     case _ =>
   }
 
-  def onEvent(e: Event) = {
+  def onEvent(e: Event ) = {
     log.info("Changing internal state in response to an event!")
     e match {
-      case e: Events.OrderInitialized =>
+      case e: OrderInitialized =>
         state = StateOrder.IN_PROGRESS
-      case e: Events.OrderCancelled =>
+        deliver( streamActor.path ) { deliverId => 
+          EnvelopeOrderWithAck( AckOrder( deliverId ), self, e )
+        }
+      case e: OrderCancelled =>
         state = StateOrder.CANCELLED
+        deliver( streamActor.path ) { deliverId => 
+          EnvelopeOrderWithAck( AckOrder( deliverId ), self, e )
+        }
+      case AckConfirmed( timeStamp, idDeliver) => 
+        confirmDelivery( idDeliver ) 
     }
   }
 

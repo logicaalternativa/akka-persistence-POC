@@ -17,6 +17,7 @@ import scala.language.postfixOps
 
 import poc.persistence.write.Event
 import poc.persistence.write.Events.OrderInitialized
+import poc.persistence.write.Commands.EnvelopeOrderWithAck
 
 sealed trait Query
 
@@ -28,7 +29,7 @@ object UserActor extends BaseObjectActor{
 
   def name = "Users"
 
-  protected def props = Props[UserActor]
+  protected def props( implicit system : ActorSystem ) = Props[UserActor]
 
   // the input for the extractShardId function
   // is the message that the "handler" receives
@@ -41,11 +42,14 @@ object UserActor extends BaseObjectActor{
   // the input for th extractEntityId function
   // is the message that the "handler" receives
   protected def  extractEntityId: ShardRegion.ExtractEntityId = {
-    case msg: OrderInitialized =>
-      (msg.order.idUser.toString, msg)
-    case msg: OrderCancelled =>
-      (msg.order.idUser.toString, msg)
-    case msg: GetHistoryFor =>
+    case msg : EnvelopeOrderWithAck =>
+        msg.event match  {
+        case initalized : OrderInitialized  => 
+          (initalized.order.idUser.toString, msg)
+        case cancelled : OrderCancelled => 
+          (cancelled.order.idUser.toString, msg)
+        }
+      case msg: GetHistoryFor =>
       (msg.idUser.toString, GetHistory)
 
   }
@@ -57,6 +61,8 @@ object UserActor extends BaseObjectActor{
 class UserActor extends PersistentActor with ActorLogging {
   
   import poc.persistence.write._
+  import poc.persistence.stream.StreamQuery._
+  
   
   override def persistenceId: String = s"user-${self.path.name}"
   
@@ -67,15 +73,27 @@ class UserActor extends PersistentActor with ActorLogging {
   }
 
   override def receiveCommand = {
-    case e: Event => 
-        log.info( "It is recived the following command {}. I am {} ", e, self.path )       
+    
+    case EnvelopeOrderWithAck( ackMsg, actorRefSender, e ) => {
+        
+        log.info( "It is recived the following command {}. I am {}. The sender is {} ", e, self.path, sender )       
+        
         persist( e.toString() ) { eventSaved =>
             log.info( "It is persisted the following event {}", eventSaved )       
-            onEvent( eventSaved )                         
+            onEvent( eventSaved )
+            // Pruebas -- DESCOMENTAR DESPUES!!!! -- DESCOMENTAR DESPUES!!!! -- DESCOMENTAR DESPUES!!!! 
+            //~ actorRefSender ! ackMsg
+            // Fin de Pruebas -- DESCOMENTAR DESPUES!!!! -- DESCOMENTAR DESPUES!!!! -- DESCOMENTAR DESPUES!!!! 
+            log.info( "Sent ack msg {} to ActorRef: {}", ackMsg, actorRefSender )                        
         }
+      
+    }
+    
     case GetHistory =>      
       log.info( "Get history from user {} ", history )
       sender ! createMsgHistory
+    
+    case msg => log.info ("Unknown message {}", msg)
     
   }
  

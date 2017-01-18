@@ -11,14 +11,14 @@ object UtilActorSystem extends App {
   import poc.persistence.write.OrderActor
   import poc.persistence.read.UserActor
   
-  def starShardingRegions( system : ActorSystem ) : Unit =  {
+  def starShardingRegions( implicit system : ActorSystem ) : Unit =  {
     
-    UserActor.startRegion( system )
-    OrderActor.startRegion( system )
+    UserActor.startRegion
+    OrderActor.startRegion
       
   }
 
-  def terminate( system : ActorSystem ) : Future[Terminated]= {
+  def terminate( implicit system : ActorSystem ) : Future[Terminated]= {
     
     import akka.cluster._
     import scala.concurrent.duration._

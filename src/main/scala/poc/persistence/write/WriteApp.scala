@@ -20,7 +20,7 @@ object WriteApp extends App {
   
   import Commands._
 
-  val system = ActorSystem("example")
+  implicit val system = ActorSystem("example")
   
   import scala.concurrent.duration._
   import scala.concurrent.Future
@@ -34,7 +34,7 @@ object WriteApp extends App {
   import java.lang.System._
   
   
-  def menu( orderReceiver: ActorRef, system : ActorSystem ) : Unit = {
+  def menu( implicit orderReceiver: ActorRef, system : ActorSystem ) : Unit = {
     
     println( "\nChoose Command?  " )
     println( "[ 1 ] : Create fast InitializeOrder (order1, user1)" )
@@ -47,28 +47,32 @@ object WriteApp extends App {
     
     if ( id == 1 ) {
       
-      sendMessage( 1, 1, ConsoleHelp.INIT )( orderReceiver, system )
+      sendMessage( 1, 1, ConsoleHelp.INIT )
      
     } else if ( id == 2) {
      
-      sendMessage( 1, 1, ConsoleHelp.CANCEL )( orderReceiver, system )
+      sendMessage( 1, 1, ConsoleHelp.CANCEL )
      
     } else if ( id == 3 ) {
       
-      menuAddIdOrder( ConsoleHelp.INIT )( orderReceiver, system )
+      menuAddIdOrder( ConsoleHelp.INIT )
       
     } else if ( id == 4 ) {
       
-      menuAddIdOrder( ConsoleHelp.CANCEL )( orderReceiver, system )
-      
+      menuAddIdOrder( ConsoleHelp.CANCEL )
+            
     } else if ( id <= 0 ) {
-      proccessTerminate( terminate( system ) )
+		
+      proccessTerminate( terminate )
+      
     } else{ 
-      menu( orderReceiver, system )
+      
+      menu
+      
     }
   }
   
-  def menuAddIdOrder( tpMsg : TypeMsgConsole )( orderReceiver: ActorRef, system : ActorSystem ) {
+  def menuAddIdOrder( tpMsg : TypeMsgConsole )( implicit orderReceiver: ActorRef, system : ActorSystem ) {
     
     println( "\nId order?  " )
     println( "[ 0 ] : Exit " )
@@ -77,35 +81,35 @@ object WriteApp extends App {
     
     if ( idOrder <= 0 ) {
       
-      menu( orderReceiver, system )
+      menu
         
     } else {
       
-      menuAddIdUser( idOrder, tpMsg ) ( orderReceiver, system )
+      menuAddIdUser( idOrder, tpMsg )
       
     }
     
   }
   
-  def menuAddIdUser( idOrder : Long, typeMsg : TypeMsgConsole )(orderReceiver: ActorRef, system : ActorSystem ) = {
+  def menuAddIdUser( idOrder : Long, typeMsg : TypeMsgConsole )(implicit orderReceiver: ActorRef, system : ActorSystem ) = {
     
-    println( "\nId user?  " )
+    println( s"\nId user from order '$idOrder'?  " )
     println( "[ 0 ] : Exit " )
     
     val idUser = readLongFromConsole
     
     if ( idUser <= 0 ) {
       
-      menu( orderReceiver, system )
+      menu
         
     } else {
       
-      sendMessage( idOrder, idUser, typeMsg )( orderReceiver, system )
+      sendMessage( idOrder, idUser, typeMsg )
       
     }    
   }
   
-  def sendMessage( idOrder : Long, idUser: Long, typeMsg : TypeMsgConsole )(orderReceiver: ActorRef, system : ActorSystem )  = {
+  def sendMessage( idOrder : Long, idUser: Long, typeMsg : TypeMsgConsole )( implicit orderReceiver: ActorRef, system : ActorSystem )  = {
     
     typeMsg match {        
           
@@ -113,30 +117,29 @@ object WriteApp extends App {
           
             val msg = InitializeOrder( currentTimeMillis, s"order$idOrder", idUser)
             
-            proccessResponseReturnMenu( orderReceiver ? msg )( orderReceiver, system )
+            proccessResponseReturnMenu( orderReceiver ? msg )
             
           case ConsoleHelp.CANCEL =>
           
             val msg = CancelOrder( currentTimeMillis, s"order$idOrder", idUser)
             
-            proccessResponseReturnMenu( orderReceiver ? msg )( orderReceiver, system )
-            
+            proccessResponseReturnMenu( orderReceiver ? msg )
       }
     
   }
   
-  def proccessResponseReturnMenu( future : Future[Any] ) (orderReceiver: ActorRef, system : ActorSystem ) {
+  def proccessResponseReturnMenu( future : Future[Any] ) (implicit orderReceiver: ActorRef, system : ActorSystem ) {
   
     processResponse( future ) {
-          () => menu( orderReceiver, system )
+          () => menu
     }
     
   }
   
-  starShardingRegions( system )
+  starShardingRegions
 
-  val orderReceiver: ActorRef = OrderActor.receiver( system )
+  implicit val orderReceiver: ActorRef = OrderActor.receiver
 
-  menu( orderReceiver, system )
+  menu
 
 }

@@ -11,14 +11,14 @@ trait BaseObjectActor  {
   
   protected def extractShardId : ShardRegion.ExtractShardId
   protected def extractEntityId : ShardRegion.ExtractEntityId 
-  protected def props : Props
+  protected def props( implicit system : ActorSystem ) : Props
   
   
-  def startRegion( system: ActorSystem ) :  ActorRef = {
+  def startRegion( implicit system: ActorSystem ) :  ActorRef = {
     
     ClusterSharding(system).start(
       typeName = name,
-      entityProps = props,
+      entityProps = props( system ),
       settings = ClusterShardingSettings(system),
       extractShardId = extractShardId,
       extractEntityId = extractEntityId
@@ -26,7 +26,7 @@ trait BaseObjectActor  {
     
   }
   
-  def receiver( system: ActorSystem ) : ActorRef = {
+  def receiver( implicit system: ActorSystem ) : ActorRef = {
     
     ClusterSharding(system).shardRegion( name )
     
