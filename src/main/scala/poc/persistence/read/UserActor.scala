@@ -81,9 +81,7 @@ class UserActor extends PersistentActor with ActorLogging {
         persist( e.toString() ) { eventSaved =>
             log.info( "It is persisted the following event {}", eventSaved )       
             onEvent( eventSaved )
-            // Pruebas -- DESCOMENTAR DESPUES!!!! -- DESCOMENTAR DESPUES!!!! -- DESCOMENTAR DESPUES!!!! 
-            //~ actorRefSender ! ackMsg
-            // Fin de Pruebas -- DESCOMENTAR DESPUES!!!! -- DESCOMENTAR DESPUES!!!! -- DESCOMENTAR DESPUES!!!! 
+            actorRefSender ! ackMsg
             log.info( "Sent ack msg {} to ActorRef: {}", ackMsg, actorRefSender )                        
         }
       
