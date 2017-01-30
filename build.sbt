@@ -13,7 +13,9 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-distributed-data-experimental" % "2.4.4",
   "com.typesafe.akka" %% "akka-persistence-cassandra" % "0.21",
   "ch.qos.logback"    %  "logback-classic" % "1.1.3",
-  "com.typesafe.akka" %% "akka-slf4j" % "2.4.4"
+  "com.typesafe.akka" %% "akka-slf4j" % "2.4.4",
+  "org.scalaz" %% "scalaz-core" % "7.2.7",
+  "org.scalaz" %% "scalaz-scalacheck-binding" % "7.2.7"
 )
 
 licenses := Seq(("CC0", url("http://creativecommons.org/publicdomain/zero/1.0")))
