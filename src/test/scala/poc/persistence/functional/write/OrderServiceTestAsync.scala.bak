@@ -1,0 +1,85 @@
+package poc.persistence.functional
+package write
+
+import scalaz.\/, \/.{left, right}
+import scalaz.{\/-, -\/} 
+import scala.concurrent.{Future, ExecutionContext}
+
+import Poc.ProgramAsync
+
+object OrderServiceTestAsync {
+  
+    import scala.concurrent.{Future, ExecutionContext}
+    
+    import scalaz.{Monad, MonadError}
+    import scalaz.syntax._
+    
+    implicit val ec = ExecutionContext.global
+    
+    implicit val E: MonadError[ProgramAsync,Error] = new MonadError[ProgramAsync,Error]{
+      
+      // Members declared in scalaz.Applicative
+      def point[A](a: => A): ProgramAsync[A] = Future( \/-( a ) )
+      
+      // Members declared in scalaz.Bind
+      def bind[A, B](fa: ProgramAsync[A])(f: A => ProgramAsync[B]): ProgramAsync[B] = {
+        fa flatMap ( _.fold( error => raiseError( error ), value => f(value) ) )
+        
+      }
+      
+      // Members declared in scalaz.MonadError
+      def handleError[A](fa: ProgramAsync[A])(f: Error => ProgramAsync[A]): ProgramAsync[A] = fa
+      
+      def raiseError[A](e: Error): ProgramAsync[A] = Future( -\/( e ) )
+      
+    }
+    
+    implicit val futureMonad = new Monad[ ProgramAsync ] {
+      
+      def point[A](a: ⇒ A): ProgramAsync[A] = Future( right( a ) )
+      
+      def bind[A, B](fa: ProgramAsync[A])(f: A => ProgramAsync[B]): ProgramAsync[B] = {
+        
+        fa flatMap ( _.fold( error => Future( left (error) ), value => f( value ) ) )
+        
+      }
+      
+    }
+    
+    //~ implicit val OrderServiceTestAsync : OrderServiceTestAsync = new OrderServiceTestAsync
+  
+}
+
+import OrderServiceTestAsync._
+
+
+class OrderServiceTestAsync extends OrderService[ProgramAsync]  {
+  
+  import scalaz.MonadError  
+  
+  import scalaz.syntax.monadError._
+  import scalaz.syntax._
+  
+  implicit val E: MonadError[ProgramAsync,Error] = OrderServiceTestAsync.E
+  
+  def getLastEvent(idOrder: String): ProgramAsync[OrderEvent] =  (NoInitiatedOrder( idOrder, 0 ) : OrderEvent).pure
+  
+  def sendAck(idOrden: String,eventVersion: Long): ProgramAsync[Unit] = ().pure
+  def sendNoAck(idOrden: String,eventVersion: Long): ProgramAsync[Unit] = ().pure
+  
+  def saveCommand(command: OrderCommand)(version: Long): ProgramAsync[ OrderEvent ] = {
+    
+    if ( version != 0 ) {
+      
+      E raiseError VersionOutOfDate( command.idOrder, version )
+      
+    } else {
+        
+       E point InitiatedOrder( command.idOrder, 1, 1 )
+      
+    }
+    
+  }  
+  
+}
+

@@ -15,22 +15,17 @@ import scala.concurrent.Future
 import scala.language.postfixOps
 
 
-import poc.persistence.write.Event
+import poc.persistence.write.{Event,WithUser}
 import poc.persistence.write.Events.OrderInitialized
 import poc.persistence.write.Commands.EnvelopeOrderWithAck
 
-sealed trait Query
 
 
-case object GetHistory extends Query
-case class GetHistoryFor(idUser:Long) extends Query
-
-
-object UserActor extends BaseObjectActor{
+object UserActorFunctional extends BaseObjectActor{
 
   def name = "Users"
 
-  protected def props( implicit system : ActorSystem ) = Props[UserActor]
+  protected def props( implicit system : ActorSystem ) = Props[UserActorFunctional]
 
   // the input for the extractShardId function
   // is the message that the "handler" receives
@@ -43,13 +38,8 @@ object UserActor extends BaseObjectActor{
   // the input for th extractEntityId function
   // is the message that the "handler" receives
   protected def  extractEntityId: ShardRegion.ExtractEntityId = {
-    case msg : EnvelopeOrderWithAck =>
-        msg.event match  {
-        case initalized : OrderInitialized  => 
-          (initalized.order.idUser.toString, msg)
-        case cancelled : OrderCancelled => 
-          (cancelled.order.idUser.toString, msg)
-        }
+    case msg : WithUser =>
+        (msg.idUser.toString, msg)
       case msg: GetHistoryFor =>
       (msg.idUser.toString, GetHistory)
 
@@ -59,10 +49,10 @@ object UserActor extends BaseObjectActor{
   
 }
 
-class UserActor extends PersistentActor with ActorLogging {
+class UserActorFunctional extends PersistentActor with ActorLogging {
   
   import poc.persistence.write._
-  import poc.persistence.stream.StreamQuery._
+  import poc.persistence.functional.write.OrderEvent
   
   
   override def persistenceId: String = s"user-${self.path.name}"
@@ -75,15 +65,14 @@ class UserActor extends PersistentActor with ActorLogging {
 
   override def receiveCommand = {
     
-    case EnvelopeOrderWithAck( ackMsg, actorRefSender, e ) => {
+    case o: OrderEvent => {
+      
+        log.info( "It is recived the following command {}. I am {}.", o, self.path )       
         
-        log.info( "It is recived the following command {}. I am {}. The sender is {} ", e, self.path, sender )       
-        
-        persist( e.toString() ) { eventSaved =>
+        persist( o.toString() ) { eventSaved =>
             log.info( "It is persisted the following event {}", eventSaved )       
             onEvent( eventSaved )
-            actorRefSender ! ackMsg
-            log.info( "Sent ack msg {} to ActorRef: {}", ackMsg, actorRefSender )                        
+            sender ! Status.Success( true )
         }
       
     }

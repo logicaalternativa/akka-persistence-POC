@@ -1,14 +1,16 @@
-package poc.persistence.write.functional
+package poc.persistence.functional
+package write
+
 import scalaz.\/, \/.{left, right}
 import scalaz.{\/-, -\/} 
 
+import Poc.ProgramSync
+
 object OrderServiceTestSync {
-    
+  
     import scalaz.MonadError
   
-    type ProgramSync[T] =  Error \/ T
-    
-    implicit val E: MonadError[ProgramSync,Error] = new MonadError[ProgramSync,Error]{
+       implicit val E: MonadError[ProgramSync,Error] = new MonadError[ProgramSync,Error]{
     
       def point[A](a: => A): ProgramSync[A] = \/-( a )
       
@@ -22,7 +24,7 @@ object OrderServiceTestSync {
       
     }
     
-    implicit val orderServiceTestSync = new OrderServiceTestSync
+    implicit val OrderServiceTestSync = new OrderServiceTestSync
   
 }
 
@@ -37,7 +39,12 @@ class OrderServiceTestSync extends OrderService[ProgramSync]  {
   
   implicit val E: MonadError[ProgramSync,Error] = OrderServiceTestSync.E
   
-  def getLastEvent(idOrder: String): ProgramSync[OrderEvent] =  E point NoInitiatedOrder( idOrder, 1, 0 ) 
+  def getLastEvent(idOrder: String): ProgramSync[OrderEvent] =  ( NoInitiatedOrder( idOrder, 0 ) :OrderEvent ).point
+  
+  def sendAck(idOrden: String,eventVersion: Long): ProgramSync[Unit] = ().point
+  
+  def sendNoAck(idOrden: String,eventVersion: Long): ProgramSync[Unit] = ().point
+
   
   def saveCommand(command: OrderCommand)(version: Long): ProgramSync[ OrderEvent ] = {
     
