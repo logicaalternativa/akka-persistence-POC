@@ -14,7 +14,6 @@ object StreamToQueryFunctional {
   import poc.persistence.functional.write.OrderService
   import poc.persistence.functional.Error
   import poc.persistence.publish.OrderEventWithDeliver
-  import poc.persistence.write.Commands.EnvelopeOrderWithAck
   import scalaz.{Monad,MonadError}
   import scalaz.syntax.monadError._
   

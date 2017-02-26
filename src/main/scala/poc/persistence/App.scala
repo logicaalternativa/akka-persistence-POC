@@ -18,7 +18,7 @@ object ConsoleHelp {
 }
 
 
-object WriteApp extends App {
+object AppCQRS extends App {
   
   import poc.persistence.functional.Poc.implicits._
   import poc.persistence.functional.Poc.ProgramAsync
@@ -105,7 +105,7 @@ object WriteApp extends App {
     import poc.persistence.functional.read.UserViewService.Syntax._
     
     println( s"\nId User?  " )
-    println( "[ 0 ] : Exit " )
+    println( "[ 0 ] : Exit from get history " )
     
     
     val idUser = readLongFromConsole

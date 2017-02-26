@@ -20,6 +20,18 @@ package Querys{
   
 }
 
+trait WithOrder {
+  val idOrder: String
+}
+
+trait WithUser {
+  val idUser: Long
+}
+
+sealed trait Event {
+  val timeStamp: Long
+}
+
 
 
 object OrderActorFunctional extends BaseObjectActor {

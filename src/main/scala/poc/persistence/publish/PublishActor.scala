@@ -18,9 +18,7 @@ case class DeliverId( deliverId : Long )
 
 object PublishActor extends BaseObjectActor {
   
-  import akka.stream.Materializer
   import poc.persistence.write.WithOrder
-  import poc.persistence.write.TestApp
 
   protected def props( implicit system : ActorSystem  ) =  {
     

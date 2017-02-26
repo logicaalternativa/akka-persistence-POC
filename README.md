@@ -1,5 +1,7 @@
 # Akka-persistence with CQRS POC (Proof of concept)
 
+# Functional aproach
+
 ## Dependency 
 Cassandra is needed to execute the POC
 
@@ -11,29 +13,25 @@ Cassandra is needed to execute the POC
 
 ## Execute
 
-There are three applications. One of them writes orders (_Order_ concept), the second proccesses every is the Query application (it is representated by *User* concept).
+There is only one application: **AppCQRS**. It is writen orders (_Order_ is the 'write' concept), the Querys (it is representated by *User* concept).
 
-In this aproach, every **Order** (_Write_) actor has a dependency to an special actor called "_StreamActor_". Every persisted event is sent to this actor. Behind the scenes, this actor is an akka stream that allows a pipe with User **Actor** (_Query_).
+It is used a functional approach, where the business logic is isolated from side effects. There are tree service. **OrderService** with every operactions about _orders_, **PublishService** with the publishing events logic, and the **UserViewService** related the view user _querys_. 
 
-In order to avoid a loss of data. The order actor implements the "_at-most-once_" message pattern.
+Every funcitonal programs is included in **AplicationFlow**
 
-They could be run separately or all at once. It will be able to add other nodes (no seeder nodes) if it is changed the port (different to 2551, 2552 or 2553) 
+The akka cluster sharding y akka persistence is only used as final implementation of the services and they do not have business logic.
 
-### Write app
+### Clustering
 
-Execution example:
+It will be able to add several nodes (no seeder nodes) if it is changed the port (different to 2551, 2552 or 2553) 
 
-```
- java -cp 'target/pack/lib/*' -Dclustering.port=2551  poc.persistence.write.WriteApp
-```
-
-### Query app
-
-Execution example:
+### Execution example:
 
 ```
- java -cp 'target/pack/lib/*' -Dclustering.port=2553 poc.persistence.read.QueryApp
+ java -cp 'target/pack/lib/*' -Dclustering.port=2551  poc.persistence.AppCQR
 ```
+
+### Logging
 
 Every application writes its log in the file _log/debug-${**clustering.port**}.log_ 
 

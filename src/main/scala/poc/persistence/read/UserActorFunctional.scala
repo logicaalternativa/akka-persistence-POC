@@ -4,9 +4,6 @@ import akka.actor._
 import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings, ShardRegion}
 import akka.pattern.ask
 import akka.persistence.PersistentActor
-import akka.persistence.cassandra.query.scaladsl.CassandraReadJournal
-import akka.stream.ActorMaterializer
-import poc.persistence.write.Events.OrderCancelled
 
 import akka.persistence.query._
 import poc.persistence.BaseObjectActor
@@ -16,9 +13,11 @@ import scala.language.postfixOps
 
 
 import poc.persistence.write.{Event,WithUser}
-import poc.persistence.write.Events.OrderInitialized
-import poc.persistence.write.Commands.EnvelopeOrderWithAck
 
+sealed trait Query
+
+case object GetHistory extends Query
+case class GetHistoryFor(idUser:Long) extends Query
 
 
 object UserActorFunctional extends BaseObjectActor{

@@ -8,23 +8,17 @@ object UtilActorSystem extends App {
   import scala.concurrent.Future
   import scala.util.{Success, Failure}
   import scala.concurrent.Promise
-  import poc.persistence.write.OrderActor
-  import poc.persistence.read.UserActor
+  import poc.persistence.write.OrderActorFunctional
+  import poc.persistence.read.UserActorFunctional
   
-  def starShardingRegions( implicit system : ActorSystem ) : Unit =  {
-    
-    UserActor.startRegion
-    OrderActor.startRegion
-      
-  }
 
   def terminate( implicit system : ActorSystem ) : Future[Terminated]= {
     
     import akka.cluster._
     import scala.concurrent.duration._
     
-    UserActor.receiver( system ) ! ShardRegion.GracefulShutdown
-    OrderActor.receiver( system ) ! ShardRegion.GracefulShutdown
+    UserActorFunctional.receiver( system ) ! ShardRegion.GracefulShutdown
+    OrderActorFunctional.receiver( system ) ! ShardRegion.GracefulShutdown
     
     val delay = Duration.create(5, SECONDS)
     
