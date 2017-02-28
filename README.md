@@ -28,7 +28,7 @@ It will be able to add several nodes (no seeder nodes) if it is changed the port
 ### Execution example:
 
 ```
- java -cp 'target/pack/lib/*' -Dclustering.port=2551  poc.persistence.AppCQR
+ java -cp 'target/pack/lib/*' -Dclustering.port=2551  poc.persistence.AppCQRS
 ```
 
 ### Logging

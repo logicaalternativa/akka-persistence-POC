@@ -85,8 +85,8 @@ trait OrderService [P[_]] {
         
         case noInitiated    : NoInitiatedOrder => validateStateNoInitiatedOrder( fromCommand )( noInitiated )
         case initiatedOrder : InitiatedOrder   => validateStateInitiatedOrder( fromCommand )( initiatedOrder )
-        case ClosedOrder( idOrder, _, _ )   => E raiseError OrderIsClosed( idOrder )
-        case CanceledOrder( idOrder,_,_ ) => E raiseError OrderIsClosed( idOrder )
+        case ClosedOrder( idOrder, _, _ )      => E raiseError OrderIsClosed( idOrder )
+        case CanceledOrder( idOrder,_,_ )      => E raiseError OrderIsClosed( idOrder )
         
       }
       
