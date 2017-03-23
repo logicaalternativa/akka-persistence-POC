@@ -30,10 +30,13 @@ object Poc {
   import scalaz.syntax._
   import scalaz.syntax.monadError._
   
-  import scala.concurrent.{Future, ExecutionContext}
+  import scala.concurrent.{Future, ExecutionContext, Await}
+  import scala.util.Try
+  import scala.concurrent.duration._
   
   import akka.pattern.ask
   import akka.actor.{ActorSystem, ActorRef}
+  import akka.cluster._
   
   import poc.persistence.functional.publish.{PublishServiceActor,PublishService}
   import poc.persistence.functional.read.UserViewServiceActor
@@ -90,6 +93,31 @@ object Poc {
   
   
   implicit val system = ActorSystem("example")
+  
+  Cluster(system).registerOnMemberRemoved {
+  // Traza
+  
+  println( "I run away!!!" )
+  
+  // Fin de traza
+  
+  
+  // exit JVM when ActorSystem has been terminated
+  system.registerOnTermination(System.exit(0))
+  // shut down ActorSystem
+  system.terminate()
+
+  // In case ActorSystem shutdown takes longer than 10 seconds,
+  // exit the JVM forcefully anyway.
+  // We must spawn a separate thread to not block current thread,
+  // since that would have blocked the shutdown of the ActorSystem.
+  new Thread {
+    override def run(): Unit = {
+      if (Try(Await.ready(system.whenTerminated, 10.seconds)).isFailure)
+        System.exit(-1)
+    }
+  }.start()
+}
   
   implicit val executionContex = system.dispatcher
 

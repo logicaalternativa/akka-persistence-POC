@@ -26,9 +26,6 @@ case class CanceledOrder( idOrder: String, idUser: Long, version : Long ) extend
 
 
 
-
-
-
 object OrderService {
   
   def apply[P[_]](implicit OrderService: OrderService[P]) = OrderService
